@@ -90,11 +90,9 @@ repeat
         Advance the independent variable
             x_next = x_curr + h
         The main PECE solver begins with the predictor
-            y_next  = (1/3)*(4y_curr - y_prev) + (2h/3)*(2y′_curr - y′_prev) 
+            y_pred  = (1/3)*(4y_curr - y_prev) + (2h/3)*(2y′_curr - y′_prev) 
         with a first approximation for its rate then being evaluated as
-            y′_next = ode(x_next, y_next)
-        saving
-            y′_pred = y′_next
+            y′_pred = ode(x_next, y_pred)
         for use when computing error. Gear's BDF2 method is the corrector
             y_next  ← (1/3)*(4y_curr - y_prev) + (2h/3)*y′_pred   
         after which a refined approximation for its rate is re-evaluated via
@@ -292,7 +290,7 @@ struct FirstOrderPECE <: PECE
         # Assign the history variables.
         x_prev  = PF.MReal(x₀)
         x_curr  = PF.MReal(x₀+h)
-        x_next  = PF.MReal()
+        x_next  = PF.MReal(0)
         y_prev  = PF.MVector(y₀)
         y_curr  = PF.MVector(y₁)
         y_next  = PF.MVector(length(y₀))
@@ -382,93 +380,107 @@ end
 
 function advance!(pece::FirstOrderPECE)
     if pece.n > pece.N
-        print("\nThe ODE has been solved.")
+        print("\nThe ODE has been solved.\n")
         return nothing
     end
     
-    pece.atNode = false
+    PF.set!(pece.atNode, false)
+    # get history variables
+    h       = PF.get(pece.h)
+    x_prev  = PF.get(pece.x_prev)
+    y_prev  = PF.Vector(pece.y_prev)
+    y′_prev = PF.Vector(pece.y′_prev)
+    x_curr  = PF.get(pece.x_curr)
+    y_curr  = PF.Vector(pece.y_curr)
+    y′_curr = PF.Vector(pece.y′_curr)
+    ε_curr  = PF.get(pece.ε_curr)
     # advance the independent variable
-    x_next = pece.x_curr + pece.h
+    x_next = x_curr + h
     # apply a predictor that pairs with Gear's BDF2 formula
-    y_next = (1/3)*((4pece.y_curr - pece.y_prev) 
-                    + (2pece.h/3)*(2pece.y′_curr - pece.y′_prev))
+    y_pred = (1/3)*(4y_curr - y_prev) + (2h/3)*(2y′_curr - y′_prev)
     # evaluate the ODE
-    y′_next = pece.ode(PF.Real(x_next), PF.Vector(y_next))
-    # save this value for evaluating truncation error
-    y′_pred = PF.MVector(y′_next)
+    y′_pred = pece.ode(x_next, y_pred)
     # apply Gear's BDF2 formula as the corrector:
-    y_next = (1/3)*(4pece.y_curr - pece.y_prev) + (2pece.h/3)*y′_pred
+    y_next = (1/3)*(4y_curr - y_prev) + (2h/3)*y′_pred
     # re-evaluate the ODE:
-    y′_next = pece.ode(PF.Real(x_next), PF.Vector(y_next))
+    y′_next = pece.ode(x_next, y_next)
     
     # determine the local truncation error:
-    err = (2pece.h/3)*PF.norm(y′_pred - 2pece.y′_curr + pece.y′_prev)
-    ε_next = err / max(1, PF.norm(y_next))
+    err = (2h/3)*LA.norm(y′_pred - 2y′_curr + y′_prev)
+    ε_next = err / max(1, LA.norm(y_next))
     
     # apply the step controller:
-    if (pece.ε_curr < pece.tol) && (ε_next < pece.tol) 
+    if (ε_curr < pece.tol) && (ε_next < pece.tol) 
         # use a PI controller:
-        C = (pece.tol/ε_next)^(0.1) * (pece.ε_curr/ε_next)^(0.4/3)
+        C = (pece.tol/ε_next)^(0.1) * (ε_curr/ε_next)^(0.4/3)
     else
         # use an I controller:
-        C = PF.sqrt(pece.tol/ε_next)
+        C = sqrt(pece.tol/ε_next)
     end
     
     # Manage the history by advancing its counters and variables:
     if (C > 2) && (pece.s > 4) && (pece.s%2 == 1)
-        pece.x_curr  = x_next   
-        pece.y_curr  = y_next    
-        pece.y′_curr = y′_next
-        pece.ε_curr  = ε_next
-        pece.steps   = pece.steps + 1
-        pece.doubled = pece.doubled + 1
-        pece.h = 2pece.h 
-        pece.s = (pece.s - 1) ÷ 2
+        PF.set!(pece.x_curr, x_next)
+        PF.set!(pece.ε_curr, ε_next)
+        for i in 1:pece.y_curr.len
+            pece.y_curr[i]  = y_next[i]
+            pece.y′_curr[i] = y′_next[i]
+        end
+        PF.set!(pece.steps, PF.get(pece.steps)+1)
+        PF.set!(pece.doubled, PF.get(pece.doubled)+1)
+        PF.set!(pece.h, 2PF.get(pece.h))
+        PF.set!(pece.s, (PF.get(pece.s)-1)÷2)
     elseif C > 1
-        pece.x_prev  = pece.x_curr  
-        pece.y_prev  = pece.y_curr    
-        pece.y′_prev = pece.y′_curr   
-        pece.x_curr  = x_next     
-        pece.y_curr  = y_next   
-        pece.y′_curr = y′_next 
-        pece.ε_curr  = ε_next
-        pece.steps   = pece.steps + 1
-        pece.s = pece.s - 1
+        PF.set!(pece.x_prev, x_curr)
+        PF.set!(pece.x_curr, x_next)
+        PF.set!(pece.ε_curr, ε_next)
+        for i in 1:pece.y_curr.len
+            pece.y_prev[i]  = y_curr[i]
+            pece.y′_prev[i] = y′_curr[i]
+            pece.y_curr[i]  = y_next[i]
+            pece.y′_curr[i] = y′_next[i]
+        end
+        PF.set!(pece.steps, PF.get(pece.steps)+1)
+        PF.set!(pece.s, PF.get(pece.s)-1)
     elseif ε_next < pece.tol    # with C ≤ 1
-        pece.x_prev  = (1/2)*(x_next + pece.x_curr)
-        pece.y_prev  = (1/2)*((y_next + pece.y_curr) 
-                       - (pece.h/8)*(y′_next - pece.y′_curr))
-        pece.y′_prev = (1/8)*(3y′_next + 6pece.y′_curr - pece.y′_prev)
-        pece.x_curr  = x_next     
-        pece.y_curr  = y_next    
-        pece.y′_curr = y′_next
-        pece.ε_curr  = (1/2)*(ε_next + pece.ε_curr)
-        pece.steps   = pece.steps + 1
-        pece.halved  = pece.halved + 1
-        pece.h = pece.h/2
-        pece.s = 2(pece.s - 1)
+        PF.set!(pece.x_prev, (1/2)*(x_next+x_curr))
+        PF.set!(pece.x_curr, x_next)
+        PF.set!(pece.ε_curr, (1/2)*(ε_next+ε_curr))
+        for i in 1:pece.y_curr.len
+            pece.y_prev[i]  = ((1/2)*(y_next[i] + y_curr[i])
+                               - (h/8)*(y′_next[i] - y′_curr[i]))
+            pece.y′_prev[i] = (1/8)*(3y′_next[i] + 6y′_curr[i] - y′_prev[i])
+            pece.y_curr[i]  = y_next[i]
+            pece.y′_curr[i] = y′_next[i]
+        end
+        PF.set!(pece.steps, PF.get(pece.steps)+1)
+        PF.set!(pece.halved, PF.get(pece.halved)+1)
+        PF.set!(pece.h, PF.get(pece.h)/2)
+        PF.set!(pece.s, 2(PF.get(pece.s)-1))
     else    # ε_next ≥ tol and C ≤ 1
-        pece.x_prev  = (1/2)*(pece.x_curr + pece.x_prev)  
-        pece.y_prev  = (1/2)*((pece.y_curr + pece.y_prev) 
-                       - (pece.h/8)*(pece.y′_curr - pece.y′_prev))
-        pece.y′_prev = (1/2)*(pece.y′_curr + pece.y′_prev) 
-        pece.ε_curr  = 1    # forces the I controller to be used
-        pece.repeats = pece.repeats + 1
-        pece.h = pece.h/2
-        pece.s = 2pece.s
+        PF.set!(pece.x_prev, (1/2)*(x_curr+x_prev))
+        PF.set!(pece.ε_curr, 1)    # forces the I controller to be used
+        for i in 1:pece.y_curr.len
+            pece.y_prev[i]  = ((1/2)*(y_curr[i] + y_prev[i])
+                               - (h/8)*(y′_curr[i] - y′_prev[i]))
+            pece.y′_prev[i] = (1/2)*(y′_curr[i] + y′_prev[i])
+        end
+        PF.set!(pece.repeats, PF.get(pece.repeats)+1)
+        PF.set!(pece.h, PF.get(pece.h)/2)
+        PF.set!(pece.s, 2PF.get(pece.s))
         advance!(pece)      # repeat this integration step
     end
-    if pece.s == 0 then
-        pece.n = pece.n + 1
-        pece.s = Int(PF.round(pece.dx/pece.h))
+    if pece.s == 0
+        PF.set!(pece.n, PF.get(pece.n)+1)
+        PF.set!(pece.s, Int(PF.round(pece.dx/pece.h)))
         counts = Int(max(1, pece.N÷50))
         if pece.n % counts == 0
             print(".")    # prints out about 50  .  at completion
         end
         if pece.n > pece.N
-            print("\nThe ODE has been solved.")
+            print("\nThe ODE has been solved.\n")
         end
-        pece.atNode = true
+        PF.set!(pece.atNode, true)
     end
     return nothing
 end # advance!
