@@ -1,6 +1,6 @@
 name = "TwoStepPECE"
 uuid = "a3249742-8b8e-47cf-84bc-ddc0aab4d667"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["AlanFreed <alan.d.freed@proton.me>"]
 
 [deps]
