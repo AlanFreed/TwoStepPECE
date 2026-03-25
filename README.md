@@ -2,6 +2,14 @@ To view this file, use a markdown viewer that renders LaTeX commands, e.g., Rema
 
 # Ordinary Differential Equations (ODEs)
 
+Software has been written in the julia programming language. To use this module, you will need to add the following repositories to your project:
+
+```julia
+using Pkg
+Pkg.add(url = "https://github.com/AlanFreed/PhysicalFields.jl")
+Pkg.add(url = "https://github.com/AlanFreed/TwoStepPECE.jl")
+```
+
 This package provides a numerical method for solving systems of first- and second-order ODEs. Specifically, the predict/evaluate/correct/evaluate (PECE) methods of Freed (2017) have been implemented. Because these methods are two-step integrators, they are not self starting, so one-step methods are required to take the first integration step.
 
 For a first-order ODE, one solves
@@ -12,7 +20,7 @@ subject to an initial condition of  $y₀$  at  $x₀$  so that
 $$
 y′₀ = \mathrm{f}(x₀, y₀)
 $$
-where  $x$  is the independent variable, with  $y$  being the dependent variable, and where  $y$  and  $y′$  are both either scalar, vector or matrix valued.
+where  $x$  is a scalar-valued independent variable, with  $y$  being a vector-valued dependent variable.
 
 For a second-order ODE, one solves
 $$
@@ -22,7 +30,7 @@ subject to initial conditions of  $y₀$  and  $y′₀$  at  $x₀$  so that
 $$
 y″₀ = \mathrm{f}(x₀, y₀, y′₀)
 $$
-where  $x$  is the independent variable, with  $y$  being the dependent variable along with  $y′$  being its first-order derivative, or rate, and where  $y$,  $y′$  and  $y″$ are all either scalar, vector or matrix valued.
+where  $x$  is a scalar-valued independent variable, with  $y$  being a vector-valued dependent variable along with  $y′$, which is its first-order derivative or time rate of change.
 
 Notation  $y′$  denotes  $\mathrm{d}y/\mathrm{d}x$, while notation  $y″$  denotes  $\mathrm{d}²y/\mathrm{d}x²$.
 
@@ -32,11 +40,11 @@ A local solution advances along a sub-grid with a local step size  $h$  that is 
 $$
 \mathrm{d}x = (x_N - x₀) / N
 $$ 
-and as such there will be  $N$  nodes of integration where solutions are sought. Solution arrays are of length $N+1$ whose first entry associates with the initial condition. The global step $\mathrm{d}x$  is taken to be uniform over the entire span of integration, while the local step  $h$  dynamically adjusts itself to ensure truncation error remains less than an user specified error tolerance denoted as  $tol$.  Global nodes increment as $n = 0, 1, 2, ⋯, N$. Local nodes decrement as $s = S, S-1, S-2, ⋯, 0$, where  $s=S$ and $s=0$  associate with two, neighboring, global nodes, say $n$ and $n+1$.
+and as such there will be  $N$  nodes of integration where solutions are sought. Solution arrays are of length $N+1$ whose first entry associates with an initial condition. The global step $\mathrm{d}x$  is taken to be uniform over the entire span of integration, while the local step  $h$  dynamically adjusts itself to ensure truncation error remains less than an user specified error tolerance denoted as  $tol$.  Global nodes increment as $n = 0, 1, 2, ⋯, N$. Local nodes decrement as $s = S, S-1, S-2, ⋯, 0$, where  $s=S$ and $s=0$  associate with two, neighboring, global nodes, say $n$ and $n+1$.
 
 ## Determining an Initial Step Size
 
-To provide an estimate for the initial step size  $h$  to be used when taking the first integration step, we adopt the algorithm of Freed & Iskovitz (1996). From the initial condition, assign
+To provide an estimate for the initial step size  $h$  to be used when taking the first integration step, we employ an algorithm from Freed & Iskovitz (1996). From the initial condition, assign
 $$
     h₀ = \| y₀ \| / \| y′₀ \|
 $$
@@ -79,7 +87,7 @@ now constrained by
 $$
 \mathrm{d}x/1000 < h
 $$ 
-to help avoid a potential wind-down instability.
+to help avoid a potential wind-down instability from occurring.
 
 The number of local steps required to advance toward the first global node comes from
 $$
@@ -149,7 +157,8 @@ $$
     y′_{prev} & = y′₀ \\
     x_{curr} & = x₀ + h \\
     y_{curr} & = y₁ \\
-    y′_{curr} & = y′₁
+    y′_{curr} & = y′₁ \\
+    ε_{curr} & = 1
 \end{align}
 $$
 
@@ -179,7 +188,7 @@ $$
     y″₁ & ← \mathrm{f}(x₁, y₁, y′₁) & & \text{E}
 \end{aligned}
 $$
-where the predicted values for  $y′₁$  and  $y″₁$ (their first appearance in the above formulæ) are used in the evaluation of truncation error. Upon completion of a first step, assign
+where the predicted values for  $y′₁$  and  $y″₁$ (their first appearances in the above formulæ) are used in the evaluation of truncation error. Upon completion of a first step, assign
 $$
 \begin{align}
     x_{prev} & = x₀ \\
@@ -189,7 +198,8 @@ $$
     x_{curr} & = x₀ + h \\
     y_{curr} & = y₁ \\
     y′_{curr} & = y′₁ \\
-    y″_{curr} & = y″₁ 
+    y″_{curr} & = y″₁ \\
+    ε_{curr} & = 1
 \end{align}
 $$
 Integration then continues with a two-step PECE method, specifically
@@ -216,19 +226,19 @@ The PI controller of Sőderlind (2002) is used to adjust the local step size  $h
 
 If $ε_{next} < tol$ and $ε_{curr} < tol$, then use a PI controller, and compute
 $$
-    C = ( tol / ε_{next} )^{0.3/3} ( ε_{curr} /ε_{next} )^{0.4/3}
+    C = ( tol / ε_{next} )^{0.3/(p+1)} ( ε_{curr} /ε_{next} )^{0.4/(p+1)}
 $$
 otherwise use an I controller, and compute
 $$
-    C = ( tol / ε_{next})^{1/2}
+    C = ( tol / ε_{next})^{1/p}
 $$
 where $C$ scales the step size $h$ according to the scheme outlined below. The denominator in the exponents is $p+1$ for the PI controller and $p$ for the I controller, wherein $p$ designates the order of the method, which is 2 for the PECE methods presented here.
 
-A conservative strategy is implemented to aid in avoiding a potential wind-down or wind-up instability occurring in the controller; specifically, the step size $h$ will double whenever the truncation error becomes too small, and it will halve whenever the truncation error becomes too large. When on target, the controller will maintain its step size going forward.
+A conservative strategy is implemented to aid in avoiding a potential wind-down or wind-up instability occurring in the controller; specifically, the step size $h$ will double whenever the truncation error becomes too small, and it will halve whenever the truncation error becomes too large. When on target, the controller will maintain its current step size going forward.
 
 ### First-Order ODEs
 
-Whenever the scaling factor $C > 2$ and the local step counter $s > 4$ with $s \: \mathrm{mod} \: 2 = 1$, i.e., $s$ is odd, then the ensuing step size will double with the history updating as
+Whenever the scaling factor $C > 2$ and the local step counter $s > 4$ with $s \: \mathrm{mod} \: 2 = 1$, i.e., $s$ is odd, then the ensuing step size will double with its history updating as
 $$
 \begin{aligned}
     x_{curr}  & ← x_{next} \\
@@ -289,7 +299,7 @@ with integration terminating when $n = N+1$.
 
 ### Second-Order ODEs
 
-Whenever the scaling factor $C > 2$ and the local step counter $s > 4$ with $s \: \mathrm{mod} \: 2 = 1$, i.e., $s$ is odd, then the ensuing step size will double with the history updating as
+Whenever the scaling factor $C > 2$ and the local step counter $s > 4$ with $s \: \mathrm{mod} \: 2 = 1$, i.e., $s$ is odd, then the ensuing step size will double with its history updating as
 $$
 \begin{aligned}
     x_{curr}  & ← x_{next} \\
@@ -357,7 +367,7 @@ Software has been written in the julia programming language. To use this module,
 ```julia
 using Pkg
 Pkg.add(url = "https://github.com/AlanFreed/PhysicalFields.jl")
-Pkg.add(url = "https://github.com/AlanFreed/TwoStepPECEs.jl")
+Pkg.add(url = "https://github.com/AlanFreed/TwoStepPECE.jl")
 ```
 
 All integrator types are concrete implementations of the abstract type
@@ -378,7 +388,7 @@ function PhysicalFields.openJSONReader(my_dir_path::String, my_file_name::String
 function PhysicalFields.openJSONWriter(my_dir_path::String, my_file_name::String)::IOStream
 function PhysicalFields.closeJSONStream(json_stream::IOStream)
 ```
-which are exported by the module `PhysicalFields.`
+which are exported by module `PhysicalFields.`
 
 The third common function advances a solution by a single local step, e.g., from step $s$ to step $s-1$, via
 ```julia
@@ -388,66 +398,15 @@ where `pece` is a concrete object that implements a PECE solver.
 
 ## First-Order ODEs
 
-Three data structures are available to solve first-order ODEs. One for solving scalar valued ODEs. Another for solving vector valued ODEs. And a third for solving matrix valued ODEs. The PECE methods of Freed (2017) are based upon Gear's, implicit, BDF2 method (backward difference formula of second order). BDF2 is an A stable integrator.
+The PECE methods of Freed (2017) are based upon Gear's, implicit, BDF2 method (backward difference formula of second order). BDF2 is an A stable integrator. Specifically, Freed paired Gear's BDF2 formula with a predictor so that it can be implemented as a PECE method.
 
-### Scalar Valued ODEs
-
-Given a function ode, i.e., dy/dx, that has an interface of
-```julia
-    ode = function(x::Real, y::Real)::Real
-```
-then its associated data structure will be
-```julia
-struct ScalarGearPECE <: PECE
-    ode::Function           # The differential equation that is to be solved.
-    N::UInt32               # Number of global steps to be integrated over.
-    dx::Float64             # Step size for for the global integrator.
-    h::PF.MReal             # Current step size for the local integrator.
-    n::PF.MInteger          # Global step counter, increments to N.
-    s::PF.MInteger          # Local step counter, decrements to 0.
-    x₀::Float64             # Initial value for the independent variable.
-    y₀::Float64             # Initial condition for the dependent variable.
-    x_prev::PF.MReal        # Previous value for the independent variable.
-    x_curr::PF.MReal        # Current value for the independent variable.
-    x_next::PF.MReal        # Next value for the independent variable.
-    y_prev::PF.MReal        # Previous value for the dependent variable.
-    y_curr::PF.MReal        # Current value for the dependent variable.
-    y_next::PF.MReal        # Next value for the dependent variable.
-    y′_prev::PF.MReal       # Previous value for the derivative dy/dx.
-    y′_curr::PF.MReal       # Current value for the derivative dy/dx.
-    y′_next::PF.MReal       # Next value for the derivative dy/dx.
-    tol::Float64            # Error tolerance targetted by the PI controller.
-    ε_curr::PF.MReal        # Truncation error at the current step.
-    ε_next::PF.MReal        # Truncation error at the next step.
-    steps::PF.MInteger      # Counter for successful steps taken.
-    doubled::PF.MInteger    # Counter for times where step size was doubled.
-    halved::PF.MInteger     # Counter for times where step size was halved.
-    repeats::PF.MInteger    # Counter for times where a step was repeated.
-    atNode::PF.MBoolean     # True if the local step coincides with a global step.
-end           
-```
-where `PF` is an alias for `PhysicalFields.` Types `MBoolean,` `MInteger,` `MReal,` `MVector` and `MMatrix` provide mutable types (their values can be changed within an otherwise immutable data structure) for objects that are: a boolean, an integer, a real, a real-valued vector, and a real-valued matrix, respectively.
-
-Its constructor looks like
-```julia
-function ScalarGearPECE(my_ode::Function,    # The differential equation.
-                        N::Integer,          # Global steps to take.
-                        x₀::Real,            # Solution begins at.
-                        X::Real,             # Solution ends at.
-                        y₀::Real,            # Initial condition.
-                        tol::Real)           # Error tolerance.
-end
-```
-
-### Vector Valued ODEs
-
-Given a function ode, i.e., dy/dx, that has an interface of
+Given a function `ode` for describing dy/dx that has an interface of
 ```julia
     ode = function(x::Real, y::Vector{<:Real})::Vector{<:Real}
 ```
-then its associated data structure will be
+then a data structure that implements this first-order PECE solver is
 ```julia
-struct VectorGearPECE <: PECE
+struct FirstOrderPECE <: PECE
     ode::Function           # The differential equation that is to be solved.
     N::UInt32               # Number of global steps to be integrated over.
     dx::Float64             # Step size for for the global integrator.
@@ -475,9 +434,11 @@ struct VectorGearPECE <: PECE
     atNode::PF.MBoolean     # True if the local step coincides with a global step.
 end
 ```
-where its constructor looks like
+wherein types `MBoolean,` `MInteger,` `MReal` and `MVector` exported by module `PhysicalFields,` aliased as `PF,` are extensions of types Boolean, Integer, Real and Vector in that their values in an otherwise immutable data structure can be mutated, i.e., reassigned.
+
+A constructor for this type is:
 ```julia
-function VectorGearPECE(my_ode::Function,    # The differential equation.
+function FirstOrderPECE(my_ode::Function,    # The differential equation.
                         N::Integer,          # Global steps to take.
                         x₀::Real,            # Solution begins at.
                         X::Real,             # Solution ends at.
@@ -485,32 +446,35 @@ function VectorGearPECE(my_ode::Function,    # The differential equation.
                         tol::Real)           # Error tolerance.
 ```
 
-### Matrix Valued ODEs
+## Second-Order ODEs
 
-Given a function ode, i.e., dy/dx, that has an interface of
+Given a function `ode` for describing d²y/dx² that has an interface of
 ```julia
-    ode = function(x::Real, y::Matrix{<:Real})::Matrix{<:Real}
+    ode = function(x::Real, y::Vector{<:Real}, y′::Vector{<:Real})::Vector{<:Real}
 ```
-then its associated data structure will be
+wherein y′ = dy/dx, then a data structure that implements this second-order PECE solver is
 ```julia
-struct MatrixGearPECE <: PECE
+struct SecondOrderPECE <: PECE
     ode::Function           # The differential equation that is to be solved.
     N::UInt32               # Number of global steps to be integrated over.
     dx::Float64             # Step size for for the global integrator.
     h::PF.MReal             # Current step size for the local integrator.
-    n::PF.MInteger          # Global step counter, increments to N.
-    s::PF.MInteger          # Local step counter, decrements to 0.
+    n::PF.MInteger          # Global step counter, n increments to N.
+    s::PF.MInteger          # Local step counter, s decrements to 0.
     x₀::Float64             # Initial value for the independent variable.
-    y₀::Matrix{<:Real}      # Initial condition for the dependent variable.
+    y₀::Vector{<:Real}      # Initial condition for the dependent variable.
     x_prev::PF.MReal        # Previous value for the independent variable.
     x_curr::PF.MReal        # Current value for the independent variable.
     x_next::PF.MReal        # Next value for the independent variable.
-    y_prev::PF.MMatrix      # Previous value for the dependent variable.
-    y_curr::PF.MMatrix      # Current value for the dependent variable.
-    y_next::PF.MMatrix      # Next value for the dependent variable.
-    y′_prev::PF.MMatrix     # Previous value for the derivative dy/dx.
-    y′_curr::PF.MMatrix     # Current value for the derivative dy/dx.
-    y′_next::PF.MMatrix     # Next value for the derivative dy/dx.
+    y_prev::PF.MVector      # Previous value for the dependent variable.
+    y_curr::PF.MVector      # Current value for the dependent variable.
+    y_next::PF.MVector      # Next value for the dependent variable.
+    y′_prev::PF.MVector     # Previous value for the derivative dy/dx.
+    y′_curr::PF.MVector     # Current value for the derivative dy/dx.
+    y′_next::PF.MVector     # Next value for the derivative dy/dx.
+    y″_prev::PF.MVector     # Previous value for the derivative d²y/dx².
+    y″_curr::PF.MVector     # Current value for the derivative d²y/dx².
+    y″_next::PF.MVector     # Next value for the derivative d²y/dx².
     tol::Float64            # Error tolerance targetted by the PI controller.
     ε_curr::PF.MReal        # Truncation error at the current step.
     ε_next::PF.MReal        # Truncation error at the next step.
@@ -521,20 +485,22 @@ struct MatrixGearPECE <: PECE
     atNode::PF.MBoolean     # True if the local step coincides with a global step.
 end
 ```
-where its constructor looks like
+whose constructor looks like
 ```julia
-function MatrixGearPECE(my_ode::Function,    # The differential equation.
-                        N::Integer,          # Global steps to take.
-                        x₀::Real,            # Solution begins at.
-                        X::Real,             # Solution ends at.
-                        y₀::Matrix{<:Real},  # Initial condition.
-                        tol::Real)           # Error tolerance.
+function SecondOrderPECE(my_ode::Function,    # The differential equation.
+                         N::Integer,          # Global steps to take.
+                         x₀::Real,            # Solution begins at.
+                         X::Real,             # Solution ends at.
+                         y₀::Vector{<:Real},  # Initial condition for y.
+                         y′₀::Vector{<:Real}, # Initial condition for dy/dx.
+                         tol::Real)           # Error tolerance.
 ```
 
-## Second-Order ODEs
+These PECE solvers solve their assigned ODE via the method `advance!(solver::PECE),` which advances the solution by one local step of size $h$, with the appropriate solver being selected via multiple dispatch.
 
 # Examples
 
+The Brusselator is solved as an example for a system of first-order ODEs to be solved, while vibrational motion of race car is solved as an example for a system of second-order ODEs to be solved.
 
 ## The Brusselator
 
@@ -548,12 +514,19 @@ $$
 Solutions will have a limit cycle whenever, e.g., $A = 1$ and $B = 3$. In contrast, solutions will be stiff whenever, e.g., $A = 1$ and $B = 100$.
 
 For the limit cycle case, let $x₀ = 0$ with initial conditions of $(0.1, 0.1)$, $(1.5, 3)$, $(3, 1)$ and $(3.25, 2.5)$ being considered, running out to $X = 20$.
-  
+
+![image](figures\limitCycleBrusselator.png) 
+![image](figures\limitCycleBrusselatorError.png)
+
 For the stiff case, one can use the same initial conditions, but it is useful to set $X = 0.1$.
-    
+
+![image](figures\stiffBrusselatorY1.png)
+![image](figures\stiffBrusselatorY2.png)
+![image](figures\stiffBrusselatorError.png)
+
 ## An FSAE Race Car
 
-To illustrate a class of problems governed by a second-order ODE that is matrix valued, consider a simple vibration model for a car in three degrees of freedom: bounce, pitch and roll, all measured at the center of gravity of a car.  This example simulates an FSAE race car. (The author of this software derived a variety of vibration models for an FSAE race car in his undergraduate course on vibrations. This is one of those models.)
+To illustrate a class of problems governed by a second-order ODE, consider a simple vibration model for a car in three degrees of freedom: bounce, pitch and roll, all measured at the center of gravity of a car.  This example simulates an FSAE race car. (The author of this software derived a variety of vibration models for FSAE race cars in his undergraduate course on vibrations. This is one of those models.)
 $$
 \begin{aligned}
     x & = \{ b, p, r \}^T   \\
@@ -575,17 +548,17 @@ The mass matrix  $M$ for this 3 degree-of-freedom (DOF) problem is
 $$
 M = \begin{bmatrix}
     m & 0 & 0 \\
-    0 & J_y & 0 \\
-    0 & 0 & J_x
+    0 & J_{\theta} & 0 \\
+    0 & 0 & J_{\phi}
 \end{bmatrix}
 \qquad \text{so that} \qquad
 M^{-1} = \begin{bmatrix}
     1/m & 0 & 0 \\
-    0 & 1/J_y & 0 \\
-    0 & 0 & 1/J_x
+    0 & 1/J_{\theta} & 0 \\
+    0 & 0 & 1/J_{\phi}
 \end{bmatrix}
 $$
-where  $m$  is the mass of the vehicle and driver in slugs, while  $J_x$  and  $J_y$  are the moments of inertia in units of  ft lbs/(rad/sec^2)  about the $x$ and $y$ axes, per FSAE rules. 
+where  $m$  is the mass of the vehicle and driver in slugs, while  $J_{\theta}$  and  $J_{\phi}$  are the moments of inertia in units of  $\text{slugs}\cdot\text{ft}^2$  resisting pitch and roll, respectively. 
     
 The symmetric damping matrix  $C$  for this 3 DOF car simulation is
 $$
@@ -606,7 +579,7 @@ $$
     C_{33} & = (c_1 + c_2) r_f^2 + (c_3 + c_4) r_r^2
 \end{aligned}
 $$
-where $c_1$ is the damping of the driver-front shock absorber, $c_2$ is the damping of the passenger-front shock absorber, $c_3$ is the damping of the passenger-rear shock absorber, $c_4$ is the damping of the driver-rear shock absorber, all of which have units of lb/(ft/sec).  Parameter $l_f$ is the distance from the center of gravity (CG) to the front axle, $l_r$ is the distance from the CG to the rear axle, $r_f$ is the radial distance from the axial centerline (CL) to the center of the tire patch at the front axle, and $r_r$ is the radial distance from the CL to the center of the tire patch at the rear axle, with all distances being measured in feet, per FSAE race rules.
+where $c_1$ is the damping of the driver-front shock absorber, $c_2$ is the damping of the passenger-front shock absorber, $c_3$ is the damping of the passenger-rear shock absorber, and $c_4$ is the damping of the driver-rear shock absorber, all of which have units of lbf/(ft/sec).  Parameter $l_f$ is the distance from the center of gravity (CG) to the front axle, $l_r$ is the distance from the CG to the rear axle, $r_f$ is the radial distance from the axial centerline (CL) to the center of the tire patch at the front axle, and $r_r$ is the radial distance from the CL to the center of the tire patch at the rear axle, with all distances being measured in feet, per FSAE race rules.
     
 The symmetric stiffness matrix  $K$  for this 3 DOF car simulation is
 $$
@@ -627,9 +600,9 @@ $$
     K_{33} & = (k_1 + k_2) r_f^2 + (k_3 + k_4) r_r^2
 \end{aligned}
 $$
-where $k_1$ is the stiffness of the driver-front spring, $k_2$ is the stiffness of the passenger-front spring, $k_3$ is the stiffness of the passenger-rear spring, $k_4$ is the stiffness of the driver-rear spring, all of which have units of lb/ft, per FSAE rules. The other parameters are as defined for the damping matrix.
+where $k_1$ is the stiffness of the driver-front spring, $k_2$ is the stiffness of the passenger-front spring, $k_3$ is the stiffness of the passenger-rear spring, and $k_4$ is the stiffness of the driver-rear spring, all of which have units of lbf/ft, per FSAE rules. The other parameters are as defined for the damping matrix.
         
-The forcing function $f(t)$ for thie 3 DOF car simulation is
+The forcing function $f(t)$ for this 3 DOF car simulation is
 $$
 f = \left\{ \begin{matrix}
     f_1 \\ f_2 \\ f_3
@@ -646,15 +619,15 @@ $$
           − (c_3 Ṙ_3 − c_4 Ṙ_4 + k_3 R_3 − k_4 R_4) r_r
 \end{aligned}
 $$
-where  $w$  is the weight of the car and driver in pounds,  $R_1$, $R_2$, $R_3$, $R_4$ are the upward displacements of the roadway, which are functions of time, and $Ṙ_1$, $Ṙ_2$, $Ṙ_3$, $Ṙ_4$  are their time rates of change. Units are in ft and ft/sec, respectively.  The other parameters are as defined for the damping and stiffness matrices.
+where  $w$  is the weight of a car and its driver in pounds force,  $R_1$, $R_2$, $R_3$, $R_4$ are the upward displacements of the roadway, which are functions of time, with $Ṙ_1$, $Ṙ_2$, $Ṙ_3$, $Ṙ_4$ denoting their time rates of change. Units are in ft and ft/sec, respectively.  The other parameters are as defined for the damping and stiffness matrices.
     
 Representative parameters for a typical FSAE race car with driver are:
 $$
 \begin{aligned}
     m & = 14       & & \text{slug} \\
     w & = 450      & & \text{lbf} \\
-    J_x & = 20     & & \text{ft}\cdot\text{lbf/(rad/sec^2)} \\
-    J_y & = 45     & & \text{ft}\cdot\text{lbf/(rad/sec^2)} \\
+    J_{\theta} & = 45     & & \text{slug}\cdot\text{ft}^2 \\
+    J_{\phi} & = 20     & & \text{slug}\cdot\text{ft}^2 \\
     l_f & = 3.2    & & \text{ft} \\
     l_r & = 1.8    & & \text{ft} \\
     r_f & = 2.1    & & \text{ft} \\
@@ -669,7 +642,7 @@ $$
     k_4 & = 3600   & & \text{lbf/ft}
 \end{aligned}
 $$
-where units are per FSAE race rules, with $w = mg$ where $g = 32.2 \; \text{ft/sec}^2$ is the acceleration due to gravity, and where a $\text{slug} = \text{1 lbf}\cdot\text{sec}^2\text{/ft}$ and a moment of inertia $J = \text{1 slug}\cdot\text{ft}^2$ or $J = \text{1 slug}\cdot\text{ft}^2\text{/rad} = \text{1 ft}\cdot\text{lbf/(rad/sec}^2\text{)}$ in polar coordinates.
+where units are per FSAE race rules, with $w = mg$ where $g = 32.2 \; \text{ft/sec}^2$ is the acceleration due to gravity, and where a $\text{slug} = \text{1 lbf}\cdot\text{sec}^2\text{/ft}$ and a moment of inertia $J = \text{1 slug}\cdot\text{ft}^2$.
 
 ### Roadway Forcing Function
 
@@ -682,103 +655,17 @@ $$
     (R_4, Ṙ_4) & = \mathrm{roadwayDR}(t)
 \end{aligned}
 $$
-each of which returns a tuple comprised of the roadway's vertical position and vertical velocity at its respective tire, with `DR` implying drive front, `PF` implying passenger front, `PR` implying passenger rear, and `DR` implying driver rear.
+each of which returns a tuple comprised of the roadway's vertical position and vertical velocity at its respective tire, with `DF` implying drive front, `PF` implying passenger front, `PR` implying passenger rear, and `DR` implying driver rear.
 
-A familiar roadway roadway obstacle is the speed bump, which is modeled as
+The software in the *test* subdirectory implements a roadway that is a series of five speed bumps that are traversed by a race car at constant velocity, hitting the bumps with the driver side wheels slightly before the passenger side wheels. The outcome is plotted in the following figures.
 
-```julia
-struct bump
-    height::Real    # height of a bump
-    width::Real     # width of a bump
-    top::Real       # length of flat region atop a bump
-end
-```
-
-def bump(height, length, top, x, v):
-    # geometric properties of the bump: dimensions are in ft
-    height = 1. / 6.   # height of the bump
-    length = 2.        # length of the bump
-    top = 0.5          # length of flat region on top of bump
-    
-    # a haversine bump
-    if (x <= 0.) or (x >= length):
-        # located either ahead of or behind the bump
-        R = 0.
-        dR = 0.
-    else:
-        # locate where your position is on the bump
-        if x < (length - top) / 2.:
-            phi = 2. * math.pi * x / (length - top)
-        elif x < (length + top) / 2.:
-            phi = math.pi
-        else:
-            phi = 2 * math.pi * (x - top) / (length - top)
-        R = (1. - math.cos(phi)) * height / 2.
-        dR = (math.pi * height / (length - top)) * math.sin(phi) * v
-        
-    return R, dR
-
-
-def trajectory(t):
-    # consider constant speed
-    mph2fps = 1.467
-    speed = 10 * mph2fps
-    
-    x = speed * t
-    v = speed
-    return x, v
-    
-def mogul(position, speed):
-    # properties of the mogul field
-    height = 0.25     # height of each bump in the moguls
-    length = 5.       # wavelength of each bump
-    top = 2.          # length of flat reagion on top of each bump
-
-    if position >= 0. and position < length:
-        location = position
-    elif position >= length and position < 2. * length:
-        location = position - length
-    elif position >= 2. * length and position < 3. * length:
-        location = position - 2. * length
-    elif position >= 3. * length and position < 4. * length:
-        location = position - 3. * length
-    elif position >= 4. * length and position < 5. * length:
-        location = position - 4. * length
-    else:
-       location = -1.
-    R, dR = bump(height, length, top, location, speed)
-    return R, dR
-    
-
-def roadwayDF(t):
-    position, speed = trajectory(t)
-    return mogul(position, speed)
-    
-    
-def roadwayPF(t):
-    offset = 0.5         # distance passenger side trails the driver's side
-    
-    position, speed = trajectory(t)
-    position = position - offset
-    return mogul(position, speed)
-    
-    
-def roadwayPR(t):
-    offset = 0.5         # distance passenger side trails the driver's side
-    wheelbase = 6.       # distance rear axle is behind the front axle
-    
-    position, speed = trajectory(t)
-    position = position - wheelbase - offset
-    return mogul(position, speed)
-    
-    
-def roadwayDR(t):
-    wheelbase = 6.       # distance rear axle is behind the front axle
-    
-    position, speed = trajectory(t)
-    position = position - wheelbase
-    return mogul(position, speed)
-    
+![image](figures/FSAE_z.png)
+![image](figures/FSAE_z′.png)
+![image](figures/FSAE_z″.png)
+![image](figures/FSAE_θ.png)
+![image](figures/FSAE_θ′.png)
+![image](figures/FSAE_θ″.png)
+![image](figures/FSAE_Error.png)
 
 # References
 
