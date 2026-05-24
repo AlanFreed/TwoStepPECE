@@ -12,27 +12,31 @@ Pkg.add(url = "https://github.com/AlanFreed/TwoStepPECE.jl")
 
 This package provides a numerical method for solving systems of first- and second-order ODEs. Specifically, the predict/evaluate/correct/evaluate (PECE) methods of Freed (2017) have been implemented. Because these methods are two-step integrators, they are not self starting, so one-step methods are required to take the first integration step.
 
+Notation  $y′$  denotes  $\mathrm{d}y/\mathrm{d}x$, while notation  $y″$  denotes  $\mathrm{d}²y/\mathrm{d}x²$.
+
+### First-Order ODEs
+
 For a first-order ODE, one solves
 $$
-y′  = \mathrm{f}(x, y)
+(y′, z) = \mathrm{f}(x, y)
 $$
-subject to an initial condition of  $y₀$  at  $x₀$  so that
+where argument $x$ is a scalar-valued independent variable, and argument $y$ is a vector holding the dependent variables. A tuple is returned whose first element $y′$ is the derivative of the dependent variables, while the second entry $z$ provides a possible collection of internal or hidden variables that arise in problems from time to time. Such an ODE is subject to initial conditions of  $y₀$ at  $x₀$  so that
 $$
-y′₀ = \mathrm{f}(x₀, y₀)
+(y′₀, z₀)  = \mathrm{f}(x₀, y₀)  .
 $$
-where  $x$  is a scalar-valued independent variable, with  $y$  being a vector-valued dependent variable.
+For a returned tuple, say $(y′, z)$, vector $y′$ must exist, while vector $z$ may be empty.
+
+### Second-Order ODEs
 
 For a second-order ODE, one solves
 $$
-y″  = \mathrm{f}(x, y, y′)
+(y″, z)  = \mathrm{f}(x, y, y′)
 $$
-subject to initial conditions of  $y₀$  and  $y′₀$  at  $x₀$  so that
+where argument $x$ is a scalar-valued independent variable, while argument $y$ is a vector holding the dependent variables whose rates of change are held in argument $y′$.  Such an ODE is subject to initial conditions of $y₀$ and $y′₀$ at $x₀$ so that
 $$
-y″₀ = \mathrm{f}(x₀, y₀, y′₀)
+(y″₀, z₀) = \mathrm{f}(x₀, y₀, y′₀) .
 $$
-where  $x$  is a scalar-valued independent variable, with  $y$  being a vector-valued dependent variable along with  $y′$, which is its first-order derivative or time rate of change.
-
-Notation  $y′$  denotes  $\mathrm{d}y/\mathrm{d}x$, while notation  $y″$  denotes  $\mathrm{d}²y/\mathrm{d}x²$.
+For a returned tuple, say $(y″, z)$, vector $y″$ must exist, while vector $z$ may be empty.
 
 # Numerical Methodology
 
@@ -50,7 +54,7 @@ $$
 $$
 where  $\| y \|$  is a norm for  $y$.  To help avoid a wind-down or a wind-up instability, constrain this interval so that
 $$
-\mathrm{d}x/100 < h₀ < \mathrm{d}x/10 .
+\mathrm{d}x/100 \lt h₀ \lt \mathrm{d}x/10 .
 $$
 
 For a first-order ODE, proceed by integrating
@@ -58,9 +62,9 @@ $$
 \begin{aligned}
     x₁  & = x₀ + h₀ \\
     y₁  & = y₀ + h₀y′₀ \\
-    y′₁ & = \mathrm{f}(x₁, y₁) \\
+    (y′₁, z₁) & = \mathrm{f}(x₁, y₁) \\
     y₁  & ← y₀ + (h₀/2)(y′₁ + y′₀) \\
-    y′₁ & ← \mathrm{f}(x₁, y₁)
+    (y′₁, z₁) & ← \mathrm{f}(x₁, y₁)
 \end{aligned}
 $$
 which is the predict/evaluate/correct/evaluate (PECE) method of Heun. 
@@ -71,10 +75,10 @@ $$
     x₁  & = x₀ + h₀ \\
     y₁  & = y₀ + h₀y′₀ + (h₀²/2)y″₀ \\
     y′₁ & = y′₀ + h₀y″₀ \\
-    y″₁ & = \mathrm{f}(x₁, y₁, y′₁) \\
+    (y″₁, z₁) & = \mathrm{f}(x₁, y₁, y′₁) \\
     y₁  & ←  y₀ + (h₀/2)(y′₁ + y′₀) - (h₀²/12)(y″₁ - y″₀) \\
     y′₁ & ← y′₀ + (h₀/2)(y″₁ + y″₀) \\
-    y″₁ & ← \mathrm{f}(x₁, y₁, y′₁)
+    (y″₁, z₁)  & ← \mathrm{f}(x₁, y₁, y′₁)
 \end{aligned}
 $$
 where the solution for  $y′$  is the same as a solution for $y$ given a first-order ODE, viz., Heun's method.
@@ -85,7 +89,7 @@ h = 2 \left| \frac{\| y₁ \| - \| y₀ \|}{\| y′₁ \| + \| y′₀ \|} \righ
 $$
 now constrained by 
 $$
-\mathrm{d}x/1000 < h
+\mathrm{d}x/1000 \lt h
 $$ 
 to help avoid a potential wind-down instability from occurring.
 
@@ -131,7 +135,7 @@ The local truncation error  $ε$  is then determined by
 $$
 ε_{next} = \frac{error}{\mathrm{max}(1, \| y_{next} \|)}
 $$
-which is an absolute error whenever $\| y_{next} \| < 1$ or a relative error otherwise.
+which is an absolute error whenever $\| y_{next} \| \lt 1$ or a relative error otherwise.
 
 ## Two Step PECE Methods
 
@@ -144,9 +148,9 @@ $$
 \begin{aligned}
     x₁ & = x₀ + h \\
     y₁ & = y₀ + hy′₀ & & \text{P} \\
-    y′₁ & = \mathrm{f}(x₁, y₁) & & \text{E} \\
+    (y′₁, z₁) & = \mathrm{f}(x₁, y₁) & & \text{E} \\
     y₁ & ← y₀ + (h/2)(y′₁ + y′₀) & & \text{C} \\
-    y′₁ & ← \mathrm{f}(x₁, y₁) & & \text{E}
+    (y′₁, z₁) & ← \mathrm{f}(x₁, y₁) & & \text{E}
 \end{aligned}
 $$
 where the predicted value for  $y′₁$ (the first of two evaluations for  $y′₁$  to appear in the above expressions) is used in the computation of truncation error. Upon completion of a first step, assign
@@ -154,9 +158,11 @@ $$
 \begin{align}
     x_{prev} & = x₀ \\
     y_{prev} & = y₀ \\
+    z_{prev} & = z₀  \\
     y′_{prev} & = y′₀ \\
     x_{curr} & = x₀ + h \\
     y_{curr} & = y₁ \\
+    z_{curr} & = z₁ \\
     y′_{curr} & = y′₁ \\
     ε_{curr} & = 1
 \end{align}
@@ -167,12 +173,12 @@ $$
 \begin{aligned}
     x_{next} & = x_{curr} + h & & \\
     y_{next} & = (1/3)(4y_{curr} - y_{prev}) + (2h/3)(2y′_{curr} - y′_{prev}) & & \text{P} \\
-    y′_{next} & = \mathrm{f}(x_{next}, y_{next}) & & \text{E} \\
+    (y′_{next}, z_{next}) & = \mathrm{f}(x_{next}, y_{next}) & & \text{E} \\
     y_{next} & ← (1/3)(4y_{curr} - y_{prev}) + (2h/3)y′_{next} & & \text{C} \\
-    y′_{next} & ← \mathrm{f}(x_{next}, y_{next}) & & \text{E}
+    (y′_{next}, z_{next}) & ← \mathrm{f}(x_{next}, y_{next}) & & \text{E}
 \end{aligned}
 $$
-where the corrector in this PECE method is the well-known BDF2 method (backward difference formula of second order) made popular by Gear.  This method is second-order accurate and, most importantly, A stable. The predicted value for  $y′₁$  is used in the evaluation of truncation error.
+where the corrector in this PECE method is the well-known BDF2 method (backward difference formula of second order) made popular by Gear.  This method is second-order accurate and, most importantly, A stable. The predicted value for  $y′_{next}$  is used in the evaluation of truncation error.
 
 ### Second-Order ODEs
 
@@ -182,10 +188,10 @@ $$
     x₁ & = x₀ + h \\
     y₁ & =  y₀ + hy′₀ + (h²/2)y″₀ & & \text{P} \\
     y′₁ & = y′₀ + hy″₀ & & \\
-    y″₁ & = \mathrm{f}(x₁, y₁, y′₁) & & \text{E} \\
+    (y″₁, z₁) & = \mathrm{f}(x₁, y₁, y′₁) & & \text{E} \\
     y₁ & ←  y₀ + (h/2)(y′₁ + y′₀) - (h²/12)(y″₁ - y″₀) & &  \text{C} \\
     y′₁ & ← y′₀ + (h/2)(y″₁ + y″₀) & & \\
-    y″₁ & ← \mathrm{f}(x₁, y₁, y′₁) & & \text{E}
+    (y″₁, z₁) & ← \mathrm{f}(x₁, y₁, y′₁) & & \text{E}
 \end{aligned}
 $$
 where the predicted values for  $y′₁$  and  $y″₁$ (their first appearances in the above formulæ) are used in the evaluation of truncation error. Upon completion of a first step, assign
@@ -193,10 +199,12 @@ $$
 \begin{align}
     x_{prev} & = x₀ \\
     y_{prev} & = y₀ \\
+    z_{prev} & = z₀ \\
     y′_{prev} & = y′₀ \\
     y″_{prev} & = y″₀ \\
     x_{curr} & = x₀ + h \\
     y_{curr} & = y₁ \\
+    z_{curr} & = z₁ \\
     y′_{curr} & = y′₁ \\
     y″_{curr} & = y″₁ \\
     ε_{curr} & = 1
@@ -210,10 +218,10 @@ $$
                     + (h/6)(3y′_{curr} + y′_{prev}) 
                     + (h²/36)(31y″_{curr} - y″_{prev}) & &  \text{P} \\
     y′_{next} & = (1/3)(4y′_{curr} - y′_{prev}) + (2h/3)(2y″_{curr} - y″_{prev}) & & \\
-    y″_{next} & = \mathrm{f}(x_{next}, y_{next}, y′_{next}) & & \text{E} \\
+    (y″_{next}, z_{next}) & = \mathrm{f}(x_{next}, y_{next}, y′_{next}) & & \text{E} \\
     y_{next} & ← (1/3)*(4y_{curr} - y_{prev}) + (h/24)(y′_{next} + 14y′_{curr} + y′_{prev}) + (h²/72)(10y″_{next} + 51y″_{curr} - y″_{prev}) & & \text{C} \\
     y′_{next} & ← (1/3)(4y′_{curr} - y′_{prev}) + (2h/3)y″_{next} & & \\
-    y″_{next} & ← \mathrm{f}(x_{next}, y_{next}, y′_{next}) & & \text{E}
+    (y″_{next}, z_{next}) & ← \mathrm{f}(x_{next}, y_{next}, y′_{next}) & & \text{E}
 \end{aligned}
 $$
 where the PECE method for integrating $y′_{next} $ is the same as the PECE method used for solving $y_{next}$ in a first-order ODE. 
@@ -224,7 +232,7 @@ Note that the coefficients for $y$ have a weight of 1, while the coefficients fo
 
 The PI controller of Sőderlind (2002) is used to adjust the local step size  $h$  according to the following strategy.
 
-If $ε_{next} < tol$ and $ε_{curr} < tol$, then use a PI controller, and compute
+If $ε_{next} \lt tol$ and $ε_{curr} \lt tol$, then use a PI controller, and compute
 $$
     C = ( tol / ε_{next} )^{0.3/(p+1)} ( ε_{curr} /ε_{next} )^{0.4/(p+1)}
 $$
@@ -238,38 +246,43 @@ A conservative strategy is implemented to aid in avoiding a potential wind-down 
 
 ### First-Order ODEs
 
-Whenever the scaling factor $C > 2$ and the local step counter $s > 4$ with $s \: \mathrm{mod} \: 2 = 1$, i.e., $s$ is odd, then the ensuing step size will double with its history updating as
+Whenever the scaling factor $C \gt 2$ and the local step counter $s \gt 4$ with $s \: \mathrm{mod} \: 2 = 1$, i.e., $s$ is odd, then the ensuing step size will double with its history updating as
 $$
 \begin{aligned}
     x_{curr}  & ← x_{next} \\
     y_{curr} & ← y_{next} \\
+    z_{curr} & ← z_{next} \\
     y′_{curr} & ← y′_{next} \\
     ε_{curr} & ← ε_{next} \\
     h & ← 2h \\
     s & ← (s - 1) ÷ 2
 \end{aligned}
 $$
-Otherwise, if $C > 1$, then the step size is maintained with the history updating as
+Otherwise, if $C \gt 1$, then the step size is maintained with the history updating as
 $$
 \begin{aligned}
     x_{prev} & ← x_{curr} \\
     y_{prev} & ← y_{curr} \\
+    z_{prev} & ← z_{curr} \\
     y′_{prev} & ← y′_{curr} \\
     x_{curr} & ← x_{next} \\
     y_{curr} & ← y_{next} \\
+    z_{curr} & ← z_{next} \\
     y′_{curr} & ← y′_{next} \\
     ε_{curr} & ← ε_{next} \\
     s & ← s - 1
 \end{aligned}
 $$
-Otherwise, if $C \le 1$ and $ε_{next} < tol$, then the step size is halved, with previous values being interpolated, and as such the history updates as
+Otherwise, if $C \le 1$ and $ε_{next} \lt tol$, then the step size is halved, with previous values being interpolated, and as such the history updates as
 $$
 \begin{aligned}
     x_{prev} & ← (1/2)(x_{next} + x_{curr}) \\
     y_{prev} & ← (1/2)(y_{next} + y_{curr}) - (h/8)*(y′_{next} - y′_{curr}) \\
+    z_{prev} & ← (1/8)(3z_{next} + 6z_{curr} - z_{prev}) \\
     y′_{prev} & ← (1/8)(3y′_{next} + 6y′_{curr} - y′_{prev}) \\
     x_{curr} & ← x_{next} \\
     y_{curr} & ← y_{next} \\
+    z_{curr} & ← z_{next} \\
     y′_{curr} & ← y′_{next} \\
     ε_{curr} & ← ε_{next} \\
     h & ← h/2 \\
@@ -281,6 +294,7 @@ $$
 \begin{aligned}
     x_{prev} & ← (1/2)(x_{curr} + x_{prev}) \\
     y_{prev} & ← (1/2)(y_{curr} + y_{prev}) - (h/8)(y′_{curr} - y′_{prev}) \\
+    z_{prev} & ← (1/2)(z_{curr} + z_{prev}) \\
     y′_{prev} & ← (1/2)(y′_{curr} + y′_{prev}) \\
     ε_{curr} & ← 1 \\
     h & ← h/2 \\
@@ -299,40 +313,45 @@ with integration terminating when $n = N+1$.
 
 ### Second-Order ODEs
 
-Whenever the scaling factor $C > 2$ and the local step counter $s > 4$ with $s \: \mathrm{mod} \: 2 = 1$, i.e., $s$ is odd, then the ensuing step size will double with its history updating as
+Whenever the scaling factor $C \gt 2$ and the local step counter $s \gt 4$ with $s \: \mathrm{mod} \: 2 = 1$, i.e., $s$ is odd, then the ensuing step size will double with its history updating as
 $$
 \begin{aligned}
     x_{curr}  & ← x_{next} \\
     y_{curr} & ← y_{next} \\
+    z_{curr} & ← z_{next} \\
     y′_{curr} & ← y′_{next} \\
     y″_{curr} & ← y″_{next} \\
     h & ← 2h \\
     s & ← (s - 1) ÷ 2
 \end{aligned}
 $$
-Otherwise, if $C > 1$, then the step size is maintained with the history updating as
+Otherwise, if $C \gt 1$, then the step size is maintained with the history updating as
 $$
 \begin{aligned}
     x_{prev} & ← x_{curr} \\
     y_{prev} & ← y_{curr} \\
+    z_{prev} & ← z_{curr} \\
     y′_{prev} & ← y′_{curr} \\
     y″_{prev} & ← y″_{curr} \\
     x_{curr} & ← x_{next} \\
     y_{curr} & ← y_{next} \\
+    z_{curr} & ← z_{next} \\
     y′_{curr} & ← y′_{next} \\
     y″_{curr} & ← y″_{next} \\
     s & ← s - 1
 \end{aligned}
 $$
-Otherwise, if $C \le 1$ and $ε_{next} < tol$, then the step size is halved, with previous values being interpolated, and as such the history updates as
+Otherwise, if $C \le 1$ and $ε_{next} \lt tol$, then the step size is halved, with previous values being interpolated, and as such the history updates as
 $$
 \begin{aligned}
     x_{prev} & ← (1/2)(x_{next} + x_{curr}) \\
     y_{prev} & ← (1/2)(y_{next} + y_{curr}) - (h/8)*(y′_{next} - y′_{curr}) \\
+    z_{prev} & ← (1/8)(3z_{next} + 6z_{curr} - z_{prev}) \\
     y′_{prev} & ← (1/2)(y′_{next} + y′_{curr}) - (h/8)(y″_{next} - y″_{curr}) \\
     y″_{prev} & ← (1/8)(3y″_{next} + 6y″_{curr} - y″_{prev}) \\
     x_{curr} & ← x_{next} \\
     y_{curr} & ← y_{next} \\
+    z_{curr} & ← z_{next} \\
     y′_{curr} & ← y′_{next} \\
     y″_{curr} & ← y″_{next} \\
     h & ← h/2 \\
@@ -344,6 +363,7 @@ $$
 \begin{aligned}
     x_{prev} & ← (1/2)(x_{curr} + x_{prev}) \\
     y_{prev} & ← (1/2)(y_{curr} + y_{prev}) - (h/8)(y′_{curr} - y′_{prev}) \\
+    z_{prev} & ← (1/2)(z_{curr} + z_{prev}) \\
     y′_{prev} & ← (1/2)(y′_{curr} + y′_{prev}) - (h/8)(y″_{curr} - y″_{prev}) \\
     y″_{prev} & ← (1/2)(y″_{curr} + y″_{prev}) \\
     h & ← h/2 \\
@@ -400,11 +420,11 @@ where `pece` is a concrete object that implements a PECE solver.
 
 The PECE methods of Freed (2017) are based upon Gear's, implicit, BDF2 method (backward difference formula of second order). BDF2 is an A stable integrator. Specifically, Freed paired Gear's BDF2 formula with a predictor so that it can be implemented as a PECE method.
 
-Given a function `ode` for describing dy/dx that has an interface of
+Given a function `ode` for describing y′ = dy/dx that has an interface of
 ```julia
-    ode = function(x::Real, y::Vector{<:Real})::Vector{<:Real}
+    ode = function(x::Real, y::Vector{<:Real})::Tuple{Vector{<:Real}, Vector{<:Real}}
 ```
-then a data structure that implements this first-order PECE solver is
+where the first argument of the returned tuple contains the derivative y′, while the second argument contains a collection of internal or hidden variables z, which may be empty. Then a data structure that implements this first-order PECE solver is
 ```julia
 struct FirstOrderPECE <: PECE
     ode::Function           # The differential equation that is to be solved.
@@ -414,17 +434,21 @@ struct FirstOrderPECE <: PECE
     n::PF.MInteger          # Global step counter, n increments to N.
     s::PF.MInteger          # Local step counter, s decrements to 0.
     x₀::Float64             # Initial value for the independent variable.
-    y₀::Vector{<:Real}      # Initial condition for the dependent variable.
+    y₀::Vector{<:Real}      # Initial condition for the dependent variables.
+    z₀::Vector{<:Real}      # Initial condition for the internal or hidden variables.
     x_prev::PF.MReal        # Previous value for the independent variable.
     x_curr::PF.MReal        # Current value for the independent variable.
     x_next::PF.MReal        # Next value for the independent variable.
-    y_prev::PF.MVector      # Previous value for the dependent variable.
-    y_curr::PF.MVector      # Current value for the dependent variable.
-    y_next::PF.MVector      # Next value for the dependent variable.
-    y′_prev::PF.MVector     # Previous value for the derivative dy/dx.
-    y′_curr::PF.MVector     # Current value for the derivative dy/dx.
-    y′_next::PF.MVector     # Next value for the derivative dy/dx.
-    tol::Float64            # Error tolerance targetted by the PI controller.
+    y_prev::PF.MVector      # Previous values for the dependent variables.
+    y_curr::PF.MVector      # Current values for the dependent variables.
+    y_next::PF.MVector      # Next values for the dependent variables.
+    z_prev::PF.MVector      # Previous values for the internal or hidden variables.
+    z_curr::PF.MVector      # Current values for the internal or hidden variables.
+    z_next::PF.MVector      # Next values for the internal or hidden variables.
+    y′_prev::PF.MVector     # Previous values for the derivatives dy/dx.
+    y′_curr::PF.MVector     # Current values for the derivatives dy/dx.
+    y′_next::PF.MVector     # Next values for the derivatives dy/dx.
+    tol::Float64            # Error tolerance targeted by the PI controller.
     ε_curr::PF.MReal        # Truncation error at the current step.
     ε_next::PF.MReal        # Truncation error at the next step.
     steps::PF.MInteger      # Counter for successful steps taken.
@@ -448,11 +472,11 @@ function FirstOrderPECE(my_ode::Function,    # The differential equation.
 
 ## Second-Order ODEs
 
-Given a function `ode` for describing d²y/dx² that has an interface of
+Given a function `ode` for describing y″ = d²y/dx² that has an interface of
 ```julia
-    ode = function(x::Real, y::Vector{<:Real}, y′::Vector{<:Real})::Vector{<:Real}
+    ode = function(x::Real, y::Vector{<:Real}, y′::Vector{<:Real})::Tuple{Vector{<:Real}, Vector{<:Real}}
 ```
-wherein y′ = dy/dx, then a data structure that implements this second-order PECE solver is
+where the first argument of the returned tuple contains the second derivative y″, while the second argument contains a collection of internal or hidden variables z, which may be empty. Then a data structure that implements this second-order PECE solver is 
 ```julia
 struct SecondOrderPECE <: PECE
     ode::Function           # The differential equation that is to be solved.
@@ -462,20 +486,24 @@ struct SecondOrderPECE <: PECE
     n::PF.MInteger          # Global step counter, n increments to N.
     s::PF.MInteger          # Local step counter, s decrements to 0.
     x₀::Float64             # Initial value for the independent variable.
-    y₀::Vector{<:Real}      # Initial condition for the dependent variable.
+    y₀::Vector{<:Real}      # Initial condition for the dependent variables.
+    z₀::Vector{<:Real}      # Initial condition for the internal or hidden variables.
     x_prev::PF.MReal        # Previous value for the independent variable.
     x_curr::PF.MReal        # Current value for the independent variable.
     x_next::PF.MReal        # Next value for the independent variable.
-    y_prev::PF.MVector      # Previous value for the dependent variable.
-    y_curr::PF.MVector      # Current value for the dependent variable.
-    y_next::PF.MVector      # Next value for the dependent variable.
-    y′_prev::PF.MVector     # Previous value for the derivative dy/dx.
-    y′_curr::PF.MVector     # Current value for the derivative dy/dx.
-    y′_next::PF.MVector     # Next value for the derivative dy/dx.
-    y″_prev::PF.MVector     # Previous value for the derivative d²y/dx².
-    y″_curr::PF.MVector     # Current value for the derivative d²y/dx².
-    y″_next::PF.MVector     # Next value for the derivative d²y/dx².
-    tol::Float64            # Error tolerance targetted by the PI controller.
+    y_prev::PF.MVector      # Previous values for the dependent variables.
+    y_curr::PF.MVector      # Current values for the dependent variables.
+    y_next::PF.MVector      # Next values for the dependent variables.
+    z_prev::PF.MVector      # Previous values for the internal or hidden variables.
+    z_curr::PF.MVector      # Current values for the internal or hidden variables.
+    z_next::PF.MVector      # Next values for the internal or hidden variables.
+    y′_prev::PF.MVector     # Previous values for the derivatives dy/dx.
+    y′_curr::PF.MVector     # Current values for the derivatives dy/dx.
+    y′_next::PF.MVector     # Next values for the derivatives dy/dx.
+    y″_prev::PF.MVector     # Previous values for the derivatives d²y/dx².
+    y″_curr::PF.MVector     # Current values for the derivatives d²y/dx².
+    y″_next::PF.MVector     # Next values for the derivatives d²y/dx².
+    tol::Float64            # Error tolerance targeted by the PI controller.
     ε_curr::PF.MReal        # Truncation error at the current step.
     ε_next::PF.MReal        # Truncation error at the next step.
     steps::PF.MInteger      # Counter for successful steps taken.
@@ -496,11 +524,11 @@ function SecondOrderPECE(my_ode::Function,    # The differential equation.
                          tol::Real)           # Error tolerance.
 ```
 
-These PECE solvers solve their assigned ODE via the method `advance!(solver::PECE),` which advances the solution by one local step of size $h$, with the appropriate solver being selected via multiple dispatch.
+These PECE solvers solve their assigned ODE via the method `advance!(solver::PECE),` which advances a solution by one local step of size $h$, with the appropriate solver being selected via multiple dispatch.
 
 # Examples
 
-The Brusselator is solved as an example for a system of first-order ODEs to be solved, while vibrational motion of race car is solved as an example for a system of second-order ODEs to be solved.
+The Brusselator is solved as an example for a system of first-order ODEs to be solved, while the vibrational motion of a race car is solved as an example for a system of second-order ODEs to be solved.
 
 ## The Brusselator
 
@@ -526,7 +554,7 @@ For the stiff case, one can use the same initial conditions, but it is useful to
 
 ## An FSAE Race Car
 
-To illustrate a class of problems governed by a second-order ODE, consider a simple vibration model for a car in three degrees of freedom: bounce, pitch and roll, all measured at the center of gravity of a car.  This example simulates an FSAE race car. (The author of this software derived a variety of vibration models for FSAE race cars in his undergraduate course on vibrations. This is one of those models.)
+To illustrate a class of problems governed by a second-order ODE, consider a simple vibration model for a car in three degrees of freedom: bounce, pitch and roll, all measured at the center of gravity of a car.  This example simulates an FSAE race car. (The author of this software derived a variety of vibration models for FSAE race cars when he taught an undergraduate course in vibrations. This is one of those models.)
 $$
 \begin{aligned}
     x & = \{ b, p, r \}^T   \\
@@ -534,7 +562,7 @@ $$
     a & = \{ \mathrm{d}²b/\mathrm{d}t², \mathrm{d}²p/\mathrm{d}t², \mathrm{d}²r/\mathrm{d}t² \}^T  
 \end{aligned}
 $$
-where $t$ is time (the independent variable) and where $b$ denotes bounce, $p$ denotes pitch, and  $r$ denotes roll (the dependent variables), with $x$ being a displacement vector, $v$ being a velocity vector, and $a$ being an acceleration vector. Bounce is in feet, while pitch and roll are in radians, per FSAE rules. Bounce is positive downward (towards the ground). Pitch is positive whenever the nose is up and the tail is down. Roll is positive whenever the driver side is up and the passenger side is down.
+Here $t$ is time (the independent variable) while $b$ denotes bounce, $p$ denotes pitch, and  $r$ denotes roll (the dependent variables), with $x$ being a displacement vector, $v$ being a velocity vector, and $a$ being an acceleration vector. Bounce is in feet, while pitch and roll are in radians, per FSAE rules. Bounce is positive downward (towards the ground). Pitch is positive whenever the nose is up and the tail is down. Roll is positive whenever the driver side is up and the passenger side is down.
 
 Newton's second law of motion then takes on the form of a matrix equation, viz.,
 $$
@@ -558,7 +586,7 @@ M^{-1} = \begin{bmatrix}
     0 & 0 & 1/J_{\phi}
 \end{bmatrix}
 $$
-where  $m$  is the mass of the vehicle and driver in slugs, while  $J_{\theta}$  and  $J_{\phi}$  are the moments of inertia in units of  $\text{slugs}\cdot\text{ft}^2$  resisting pitch and roll, respectively. 
+where  $m$  is the mass of the vehicle and driver in slugs, while  $J_{\theta}$  and  $J_{\phi}$  are the moments of inertia in units of  $\text{slugs}\cdot\text{ft}^2$  that resist pitch and roll, respectively. 
     
 The symmetric damping matrix  $C$  for this 3 DOF car simulation is
 $$
