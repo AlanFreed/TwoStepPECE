@@ -3,6 +3,7 @@
 
     author:  Alan Freed
     date:    March 18, 2026
+    updated: May 24, 2026
     
     To illustrate this class of problems, consider a vibration model for a car 
     in three degrees of freedom: heave, pitch and roll, all measured at the 
@@ -352,10 +353,14 @@ function run()
     print("  θ = ", PF.toString(180x0[2]/π), " degrees\n") 
     print("  φ = ", PF.toString(180x0[3]/π), " degrees")
     
-    function ode(x::Float64, y::Vector{Float64}, y′::Vector{Float64})
+    function ode(x::Float64, y::Vector{Float64}, y′::Vector{Float64})::Tuple{Vector{Float64}, Vector{Float64}}
+        # the ODE to be solved
         y″ = acceleration(car, x, speed, y, y′)
-        return y″
+        # this ODE, as written, has no internal or hidden variables
+        z = Vector{Float64}(undef, 0)
+        return y″, z
     end # ode
+
     solver = SecondOrderPECE(ode, N, t0, T, x0, v0, tol)
     
     t  = zeros(Float64, N+1)    # time

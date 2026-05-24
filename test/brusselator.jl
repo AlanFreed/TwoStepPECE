@@ -56,7 +56,7 @@ function stiff(x::Real, y::Vector{Float64})::Tuple{Vector{Float64}, Vector{Float
     # this ODE has no internal or hidden variables
     z = Vector{Float64}(undef, 0)
     
-    return ode
+    return ode, z
 end # stiff
 
 function run()
