@@ -1,6 +1,7 @@
 """
     author:  Alan Freed
     date:    March 20, 2026
+    updated: May 24, 2026
 
     This problem is known as the Brusselator:
     
@@ -32,21 +33,29 @@ import
 export
     run
     
-function limitCycle(x::Real, y::Vector{Float64})::Vector{Float64}
+function limitCycle(x::Real, y::Vector{Float64})::Tuple{Vector{Float64}, Vector{Float64}}
+    # the ODE to be solved
     A = 1
     B = 3
     ode = Vector{Float64}(undef, 2)
     ode[1] = A - (B + 1)*y[1] + y[1]*y[1]*y[2]
     ode[2] = B*y[1] - y[1]*y[1]*y[2]
-    return ode
+    # this ODE has no internal or hidden variables
+    z = Vector{Float64}(undef, 0)
+    
+    return ode, z
 end # limitCycle
 
-function stiff(x::Real, y::Vector{Float64})::Vector{Float64}
+function stiff(x::Real, y::Vector{Float64})::Tuple{Vector{Float64}, Vector{Float64}}
+    # the ODE to be solved
     A = 1
     B = 100
     ode = Vector{Float64}(undef, 2)
     ode[1] = A - (B + 1)*y[1] + y[1]*y[1]*y[2]
     ode[2] = B*y[1] - y[1]*y[1]*y[2]
+    # this ODE has no internal or hidden variables
+    z = Vector{Float64}(undef, 0)
+    
     return ode
 end # stiff
 
