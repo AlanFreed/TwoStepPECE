@@ -390,7 +390,7 @@ struct SecondOrderPECE <: PECE
                              n::PF.MInteger,
                              s::PF.MInteger,
                              x₀::Float64,
-                             y₀::Vector{Float64}
+                             y₀::Vector{Float64},
                              z₀::Vector{Float64},
                              x_prev::PF.MReal,
                              x_curr::PF.MReal,
