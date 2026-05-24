@@ -2,12 +2,13 @@
 -------------------------------------------------------------------------------
 
 This file solves the following system of second-order ODEs
-    y″  = ode(x, y, y′)
+    (y″, z)  = ode(x, y, y′)
 subject to an initial condition of y₀ and y′₀ associated with x₀ so that
-    y″₀ = ode(x₀, y₀, y′₀)
-where x is a scalar-valued independent variable, and y is a vector-valued
-dependent variable, with y′ being its first-order derivative. Notation y′
-denotes dy/dx, while notation y″ denotes d²y/dx².
+    (y″₀, z₀) = ode(x₀, y₀, y′₀)
+where x is a scalar-valued independent variable, y is a vector-valued grouping
+of dependent variables whose first derivatives y′ are dy/dx and whose second
+derivatives y″ are d²y/dx², with z being a set of internal or hidden variables,
+which may be empty.
 
 A local solution advances along a sub-grid with a local step size h that is
 finer than the global step size dx in which h embeds. The solution spans an
@@ -41,13 +42,13 @@ the first integration step, from initial conditions, assign
 where ∥y∥ is a norm for y. To help avoid a potential wind-down or a wind-up
 instability, constrain this interval so that dx/100 < h₀ < dx/10 and then 
 integrate
-    x₁  = x₀ + h₀
-    y₁  = y₀ + h₀*y′₀ + (h₀²/2)*y″₀
-    y′₁ = y′₀ + h₀*y″₀
-    y″₁ = ode(x₁, y₁, y′₁)
-    y₁  ← y₀ + (h₀/2)*(y′₁ + y′₀) - (h₀²/12)*(y″₁ - y″₀)
-    y′₁ ← y′₀ + (h₀/2)*(y″₁ + y″₀)
-    y″₁ = ode(x₁, y₁, y′₁)
+           x₁ = x₀ + h₀
+           y₁ = y₀ + h₀*y′₀ + (h₀²/2)*y″₀
+          y′₁ = y′₀ + h₀*y″₀
+    (y″₁, z₁) = ode(x₁, y₁, y′₁)
+           y₁ ← y₀ + (h₀/2)*(y′₁ + y′₀) - (h₀²/12)*(y″₁ - y″₀)
+          y′₁ ← y′₀ + (h₀/2)*(y″₁ + y″₀)
+    (y″₁, z₁) = ode(x₁, y₁, y′₁)
 which is a one-step PECE integrator. Afterwords, refine this estimate for
 h according to the formula
     h ← 2|[(∥y₁∥ - ∥y₀∥) / (∥y′₁∥ + ∥y′₀∥)]|
@@ -72,25 +73,27 @@ repeat
             y₁  = y₀ + h*y′₀ + (h²/2)*y″₀
             y′₁ = y′₀ + h*y″₀
         followed by a first approximation for its second-order derivative
-            y″₁ = ode(x₁, y₁, y′₁)
+            (y″₁, z₁) = ode(x₁, y₁, y′₁)
         saving
             y″_pred = y″₁
         for use when computing error. A corrector then integrates as
             y₁  ← y₀ + (h/2)*(y′₁ + y′₀) - (h²/12)*(y″₁ - y″₀)
             y′₁ ← y′₀ + (h/2)*(y″₁ + y″₀)
         after which a refined approximation for its derivative is re-evaluated
-            y″₁ ← ode(x₁, y₁, y′₁)
+            (y″₁, z₁) ← ode(x₁, y₁, y′₁)
         whose local truncation error advances as
             error = (h²/6)*∥y″_pred - y″₀∥
             ε_curr ← 1
             ε_next ← error / max(1, ∥y₁∥)
         Upon completion of a first step, assign
             x_prev  ← x₀     
-            y_prev  ← y₀    
+            y_prev  ← y₀      
+            z_prev  ← z₀    
             y′_prev ← y′₀
             y″_prev ← y″₀  
             x_curr  ← x₀ + h 
             y_curr  ← y₁ 
+            z_curr  ← z₁ 
             y′_curr ← y′₁
             y″_curr ← y″₁
         which is a second-order accurate one-step method.
@@ -103,14 +106,14 @@ repeat
                     + (h²/36)*(31y″_curr - y″_prev)
             y′_pred = (1/3)*(4y′_curr - y′_prev) 
                     + (2h/3)*(2y″_curr - y″_prev) 
-            y″_pred = ode(x_next, y_pred, y′_pred)
+            (y″_pred, z_pred) = ode(x_next, y_pred, y′_pred)
         while its corrector integrates as
             y_next  ← (1/3)*(4y_curr - y_prev)
                     + (h/24)*(y′_pred + 14y′_curr + y′_prev) 
                     + (h²/72)*(10y″_pred + 51y″_curr - y″_prev) 
             y′_next ← (1/3)*(4y′_curr - y′_prev) 
                     + (2h/3)*y″_pred
-            y″_next ← ode(x_next, y_next, y′_next)
+            (y″_next, z_next) ← ode(x_next, y_next, y′_next)
         whose local truncation error advances as:
             error = (h/24)*∥y′_pred + 2y′_curr - 3y′_prev
                     + (h/3)*(10y″_pred - 11y″_curr + y″_prev)∥
@@ -132,6 +135,7 @@ repeat
     if C > 2 and s > 4 with s mod 2 == 1 then
         x_curr  ← x_next
         y_curr  ← y_next
+        z_curr  ← z_next
         y′_curr ← y′_next
         y″_curr ← y″_next
         ε_curr  ← ε_next
@@ -140,10 +144,12 @@ repeat
     else if C > 1 then
         x_prev  ← x_curr
         y_prev  ← y_curr
+        z_prev  ← z_curr
         y′_prev ← y′_curr
         y″_prev ← y″_curr
         x_curr  ← x_next
         y_curr  ← y_next
+        z_curr  ← z_next
         y′_curr ← y′_next
         y″_curr ← y″_next
         ε_curr  ← ε_next
@@ -151,10 +157,12 @@ repeat
     else if ε_next < tol then
         x_prev  ← (1/2)*(x_next + x_curr)
         y_prev  ← (1/2)*(y_next + y_curr) - (h/8)*(y′_next - y′_curr)
+        z_prev  ← (1/8)*(3z_next + 6z_curr - z_prev)
         y′_prev ← (1/2)*(y′_next + y′_curr) - (h/8)*(y″_next - y″_curr)
         y″_prev ← (1/8)*(3y″_next + 6y″_curr - y″_prev)
         x_curr  ← x_next 
         y_curr  ← y_next
+        z_curr  ← z_next
         y′_curr ← y′_next
         y″_curr ← y″_next
         ε_curr  ← (1/2)*(ε_next + ε_curr)
@@ -163,6 +171,7 @@ repeat
     else
         x_prev  ← (1/2)*(x_curr + x_prev)
         y_prev  ← (1/2)*(y_curr + y_prev) - (h/8)*(y′_curr - y′_prev)
+        z_prev  ← (1/2)*(z_curr + z_prev)
         y′_prev ← (1/2)*(y′_curr + y′_prev) - (h/8)*(y″_curr - y″_prev)
         y″_prev ← (1/2)*(y″_curr + y″_prev)
         ε_curr  ← 1
@@ -197,16 +206,20 @@ struct SecondOrderPECE <: PECE
     n::PF.MInteger          # Global step counter, n increments to N.
     s::PF.MInteger          # Local step counter, s decrements to 0.
     x₀::Float64             # Initial value for the independent variable.
-    y₀::Vector{<:Real}      # Initial condition for the dependent variable.
+    y₀::Vector{<:Real}      # Initial condition for the dependent variables.
+    z₀::Vector{<:Real}      # Initial condition for the internal variables.
     x_prev::PF.MReal        # Previous value for the independent variable.
     x_curr::PF.MReal        # Current value for the independent variable.
     x_next::PF.MReal        # Next value for the independent variable.
-    y_prev::PF.MVector      # Previous value for the dependent variable.
-    y_curr::PF.MVector      # Current value for the dependent variable.
-    y_next::PF.MVector      # Next value for the dependent variable.
-    y′_prev::PF.MVector     # Previous value for the derivative dy/dx.
-    y′_curr::PF.MVector     # Current value for the derivative dy/dx.
-    y′_next::PF.MVector     # Next value for the derivative dy/dx.
+    y_prev::PF.MVector      # Previous values for the dependent variables.
+    y_curr::PF.MVector      # Current values for the dependent variables.
+    y_next::PF.MVector      # Next values for the dependent variables.
+    z_prev::PF.MVector      # Previous values for the internal variables.
+    z_curr::PF.MVector      # Current values for the internal variables.
+    z_next::PF.MVector      # Next values for the internal variables.
+    y′_prev::PF.MVector     # Previous values for the derivatives dy/dx.
+    y′_curr::PF.MVector     # Current values for the derivatives dy/dx.
+    y′_next::PF.MVector     # Next values for the derivatives dy/dx.
     y″_prev::PF.MVector     # Previous value for the derivative d²y/dx².
     y″_curr::PF.MVector     # Current value for the derivative d²y/dx².
     y″_next::PF.MVector     # Next value for the derivative d²y/dx².
@@ -273,7 +286,7 @@ struct SecondOrderPECE <: PECE
         if 3 ≠ (only(methods(my_ode)).nargs - 1)
             error("Function my_ode must have three arguments, viz., x, y and y′.")
         end
-        y″₀ = my_ode(x₀, y₀, y′₀)
+        (y″₀, z₀) = my_ode(x₀, y₀, y′₀)
         if y″₀ isa Vector{<:Real}
             if length(y″₀) ≠ length(y₀)
                 msg = "The length of vectors y, y′ and y″ in y″ = f(x,y,y′) differ."
@@ -326,7 +339,7 @@ struct SecondOrderPECE <: PECE
         # Finish integration with the corrector.
         y₁  = y₀ + (h/2)*(y′₁ + y′₀) - (h*h/12)*(y″₁ - y″₀)
         y′₁ = y′₀ + (h/2)*(y″₁ + y″₀)
-        y″₁ = my_ode(x₁, y₁, y′₁)
+        (y″₁, z₁) = my_ode(x₁, y₁, y′₁)
         
         # Assign the history variables.
         x_prev  = PF.MReal(x₀)
@@ -335,6 +348,9 @@ struct SecondOrderPECE <: PECE
         y_prev  = PF.MVector(y₀)
         y_curr  = PF.MVector(y₁)
         y_next  = PF.MVector(length(y₀))
+        z_prev  = PF.MVector(z₀)
+        z_curr  = PF.MVector(z₁)
+        z_next  = PF.MVector(length(z₀))
         y′_prev = PF.MVector(y′₀)
         y′_curr = PF.MVector(y′₁)
         y′_next = PF.MVector(length(y₀))
@@ -359,28 +375,32 @@ struct SecondOrderPECE <: PECE
         atNode  = PF.MBoolean(false)
         
         print("\n.")
-        new(my_ode, N, dx, h, n, s, x₀, y₀, x_prev, x_curr, x_next, 
-            y_prev, y_curr, y_next, y′_prev, y′_curr, y′_next, 
-            y″_prev, y″_curr, y″_next, tol, ε_curr, ε_next, 
-            steps, doubled, halved, repeats, atNode)
+        new(my_ode, N, dx, h, n, s, x₀, y₀, z₀, x_prev, x_curr, x_next, 
+            y_prev, y_curr, y_next, z_prev, z_curr, z_next, 
+            y′_prev, y′_curr, y′_next, y″_prev, y″_curr, y″_next,
+            tol, ε_curr, ε_next, steps, doubled, halved, repeats, atNode)
     end 
     
     # constructor called by JSON3
     
-    function SecondOrderPECE(ode::Function,
+    function SecondOrderPECE(my_ode::Function,
                              N::UInt32,
                              dx::Float64,
                              h::PF.MReal,
                              n::PF.MInteger,
                              s::PF.MInteger,
                              x₀::Float64,
-                             y₀::Float64,
+                             y₀::Vector{Float64}
+                             z₀::Vector{Float64},
                              x_prev::PF.MReal,
                              x_curr::PF.MReal,
                              x_next::PF.MReal,
                              y_prev::PF.MVector,
                              y_curr::PF.MVector,
                              y_next::PF.MVector,
+                             z_prev::PF.MVector,
+                             z_curr::PF.MVector,
+                             z_next::PF.MVector,
                              y′_prev::PF.MVector,
                              y′_curr::PF.MVector,
                              y′_next::PF.MVector,
@@ -396,10 +416,10 @@ struct SecondOrderPECE <: PECE
                              repeats::PF.MInteger,
                              atNode::PF.MBoolean)
         
-        new(my_ode, N, dx, h, n, s, x₀, y₀, x_prev, x_curr, x_next, 
-            y_prev, y_curr, y_next, y′_prev, y′_curr, y′_next, 
-            y″_prev, y″_curr, y″_next, tol, ε_curr, ε_next, 
-            steps, doubled, halved, repeats, atNode)
+        new(my_ode, N, dx, h, n, s, x₀, y₀, z₀, x_prev, x_curr, x_next, 
+            y_prev, y_curr, y_next, z_prev, z_curr, z_next, 
+            y′_prev, y′_curr, y′_next, y″_prev, y″_curr, y″_next,
+            tol, ε_curr, ε_next, steps, doubled, halved, repeats, atNode)
     end
 end # SecondOrderPECE
  
@@ -438,15 +458,17 @@ function advance!(pece::SecondOrderPECE)
     h       = PF.get(pece.h)
     x_prev  = PF.get(pece.x_prev)
     y_prev  = PF.Vector(pece.y_prev)
+    z_prev  = PF.Vector(pece.z_prev)
     y′_prev = PF.Vector(pece.y′_prev)
     y″_prev = PF.Vector(pece.y″_prev)
     x_curr  = PF.get(pece.x_curr)
     y_curr  = PF.Vector(pece.y_curr)
+    z_curr  = PF.Vector(pece.z_curr)
     y′_curr = PF.Vector(pece.y′_curr)
     y″_curr = PF.Vector(pece.y″_curr)
     ε_curr  = PF.get(pece.ε_curr)
     # advance the independent variable
-    x_next = x_curr + h
+    x_next  = x_curr + h
     # advance the solution with a prediction of
     y_pred  = ((1/3)*(4y_curr - y_prev)
                + (h/6)*(3y′_curr + y′_prev) 
@@ -454,14 +476,14 @@ function advance!(pece::SecondOrderPECE)
     y′_pred = ((1/3)*(4y′_curr - y′_prev) 
                + (2h/3)*(2y″_curr - y″_prev))
     # evaluate the ODE
-    y″_pred = pece.ode(x_next, y_pred, y′_pred)
+    (y″_pred, z_pred) = pece.ode(x_next, y_pred, y′_pred)
     # correct the solution with a corrector of
     y_next  = ((1/3)*(4y_curr - y_prev)
                + (h/24)*(y′_pred + 14y′_curr + y′_prev) 
                + (h*h/72)*(10y″_pred + 51y″_curr - y″_prev))
     y′_next = (1/3)*(4y′_curr - y′_prev) + (2h/3)*y″_pred
     # re-evaluated the ODE
-    y″_next = pece.ode(x_next, y_next, y′_next)
+    (y″_next, z_next) = pece.ode(x_next, y_next, y′_next)
     # whose local truncation error advances as
     err = (h/24)*LA.norm(y′_pred + 2y′_curr - 3y′_prev
                     + (h/3)*(10y″_pred - 11y″_curr + y″_prev))
@@ -485,6 +507,9 @@ function advance!(pece::SecondOrderPECE)
             pece.y′_curr[i] = y′_next[i]
             pece.y″_curr[i] = y″_next[i]
         end
+        for i in 1:pece.z_curr.len
+            pece.z_curr[i] = z_next[i]
+        end
         PF.set!(pece.steps, PF.get(pece.steps)+1)
         PF.set!(pece.doubled, PF.get(pece.doubled)+1)
         PF.set!(pece.h, 2PF.get(pece.h))
@@ -500,6 +525,10 @@ function advance!(pece::SecondOrderPECE)
             pece.y_curr[i]  = y_next[i]
             pece.y′_curr[i] = y′_next[i]
             pece.y″_curr[i] = y″_next[i]
+        end
+        for i in 1:pece.z_curr.len
+            pece.z_prev[i] = z_curr[i]
+            pece.z_curr[i] = z_next[i]
         end
         PF.set!(pece.steps, PF.get(pece.steps)+1)
         PF.set!(pece.s, PF.get(pece.s)-1)
@@ -517,6 +546,10 @@ function advance!(pece::SecondOrderPECE)
             pece.y′_curr[i] = y′_next[i]
             pece.y″_curr[i] = y″_next[i]
         end
+        for i in 1:pece.z_curr.len
+            pece.z_prev[i] = (1/8)*(3z_next[i] + 6z_curr[i] - z_prev[i])
+            pece.z_curr[i] = z_next[i]
+        end
         PF.set!(pece.steps, PF.get(pece.steps)+1)
         PF.set!(pece.halved, PF.get(pece.halved)+1)
         PF.set!(pece.h, PF.get(pece.h)/2)
@@ -530,6 +563,9 @@ function advance!(pece::SecondOrderPECE)
             pece.y′_prev[i] = ((1/2)*(y′_curr[i] + y′_prev[i])
                                - (h/8)*(y″_curr[i] - y″_prev[i]))
             pece.y″_prev[i] = (1/2)*(y″_curr[i] + y″_prev[i])
+        end
+        for i in 1:pece.z_curr.len
+            pece.z_prev[i] = (1/2)*(z_curr[i] + z_prev[i])
         end
         PF.set!(pece.repeats, PF.get(pece.repeats)+1)
         PF.set!(pece.h, PF.get(pece.h)/2)
