@@ -1,4 +1,6 @@
 """
+-------------------------------------------------------------------------------
+
     author:  Alan Freed
     date:    March 20, 2026
     updated: May 24, 2026
@@ -33,7 +35,7 @@ import
 export
     run
     
-function limitCycle(x::Real, y::Vector{Float64})::Tuple{Vector{Float64}, Vector{Float64}}
+function limitCycle(x::Real, y::Vector{<:Real})::Tuple{Vector{<:Real}, Vector{<:Real}}
     # the ODE to be solved
     A = 1
     B = 3
@@ -46,13 +48,14 @@ function limitCycle(x::Real, y::Vector{Float64})::Tuple{Vector{Float64}, Vector{
     return ode, z
 end # limitCycle
 
-function stiff(x::Real, y::Vector{Float64})::Tuple{Vector{Float64}, Vector{Float64}}
+function stiff(x::Real, y::Vector{<:Real})::Tuple{Vector{<:Real}, Vector{<:Real}}
     # the ODE to be solved
     A = 1
     B = 100
     ode = Vector{Float64}(undef, 2)
     ode[1] = A - (B + 1)*y[1] + y[1]*y[1]*y[2]
     ode[2] = B*y[1] - y[1]*y[1]*y[2]
+    
     # this ODE has no internal or hidden variables
     z = Vector{Float64}(undef, 0)
     
@@ -76,7 +79,6 @@ function run()
     err1 = zeros(Float64, N+1)
     y1_1 = zeros(Float64, N+1)
     y1_2 = zeros(Float64, N+1)
-    err1[1] = tol
     y1_1[1] = y₀[1]
     y1_2[1] = y₀[2]
     i = 1
@@ -89,6 +91,7 @@ function run()
             y1_2[i] = solver1.y_curr[2]
         end
     end
+    err1[1] = err1[2]
     print("\nThe Brusselator with ICs (0.1, 1.0) ran with statistics:\n")
     print("   ", PF.toString(solver1.steps), " steps taken with ",
           PF.toString(solver1.repeats), " steps repeated\n")
@@ -106,7 +109,6 @@ function run()
     err2 = zeros(Float64, N+1)
     y2_1 = zeros(Float64, N+1)
     y2_2 = zeros(Float64, N+1)
-    err2[1] = tol
     y2_1[1] = y₀[1]
     y2_2[1] = y₀[2]
     i = 1
@@ -119,6 +121,7 @@ function run()
             y2_2[i] = solver2.y_curr[2]
         end
     end
+    err2[1] = err2[2]
     print("\nThe Brusselator with ICs (1.5, 3.0) ran with statistics:\n")
     print("   ", PF.toString(solver2.steps), " steps taken with ",
           PF.toString(solver2.repeats), " steps repeated\n")
@@ -136,7 +139,6 @@ function run()
     err3 = zeros(Float64, N+1)
     y3_1 = zeros(Float64, N+1)
     y3_2 = zeros(Float64, N+1)
-    err3[1] = tol
     y3_1[1] = y₀[1]
     y3_2[1] = y₀[2]
     i = 1
@@ -149,6 +151,7 @@ function run()
             y3_2[i] = solver3.y_curr[2]
         end
     end
+    err3[1] = err3[2]
     print("\nThe Brusselator with ICs (3.0, 1.0) ran with statistics:\n")
     print("   ", PF.toString(solver3.steps), " steps taken with ",
           PF.toString(solver3.repeats), " steps repeated\n")
@@ -166,7 +169,6 @@ function run()
     err4 = zeros(Float64, N+1)
     y4_1 = zeros(Float64, N+1)
     y4_2 = zeros(Float64, N+1)
-    err4[1] = tol
     y4_1[1] = y₀[1]
     y4_2[1] = y₀[2]
     i = 1
@@ -179,6 +181,7 @@ function run()
             y4_2[i] = solver4.y_curr[2]
         end
     end
+    err4[1] = err4[2]
     print("\nThe Brusselator with ICs (3.5, 2.5) ran with statistics:\n")
     print("   ", PF.toString(solver4.steps), " steps taken with ",
           PF.toString(solver4.repeats), " steps repeated\n")
@@ -202,7 +205,6 @@ function run()
     for i = 2:N+1
         x5[i] = x5[i-1] + solver5.dx
     end
-    err5[1] = tol
     y5_1[1] = y₀[1]
     y5_2[1] = y₀[2]
     i = 1
@@ -215,6 +217,7 @@ function run()
             y5_2[i] = solver5.y_curr[2]
         end
     end
+    err5[1] = err5[2]
     print("\nThe stiff Brusselator with ICs (0.1, 1.0) ran with statistics:\n")
     print("   ", PF.toString(solver5.steps), " steps taken with ",
           PF.toString(solver5.repeats), " steps repeated\n")
@@ -232,7 +235,6 @@ function run()
     err6 = zeros(Float64, N+1)
     y6_1 = zeros(Float64, N+1)
     y6_2 = zeros(Float64, N+1)
-    err6[1] = tol
     y6_1[1] = y₀[1]
     y6_2[1] = y₀[2]
     i = 1
@@ -245,6 +247,7 @@ function run()
             y6_2[i] = solver6.y_curr[2]
         end
     end
+    err6[1] = err6[2]
     print("\nThe stiff Brusselator with ICs (1.5, 3.0) ran with statistics:\n")
     print("   ", PF.toString(solver6.steps), " steps taken with ",
           PF.toString(solver6.repeats), " steps repeated\n")
@@ -262,7 +265,6 @@ function run()
     err7 = zeros(Float64, N+1)
     y7_1 = zeros(Float64, N+1)
     y7_2 = zeros(Float64, N+1)
-    err7[1] = tol
     y7_1[1] = y₀[1]
     y7_2[1] = y₀[2]
     i = 1
@@ -275,6 +277,7 @@ function run()
             y7_2[i] = solver7.y_curr[2]
         end
     end
+    err7[1] = err7[2]
     print("\nThe stiff Brusselator with ICs (3.0, 1.0) ran with statistics:\n")
     print("   ", PF.toString(solver7.steps), " steps taken with ",
           PF.toString(solver7.repeats), " steps repeated\n")
@@ -292,7 +295,6 @@ function run()
     err8 = zeros(Float64, N+1)
     y8_1 = zeros(Float64, N+1)
     y8_2 = zeros(Float64, N+1)
-    err8[1] = tol
     y8_1[1] = y₀[1]
     y8_2[1] = y₀[2]
     i = 1
@@ -305,6 +307,7 @@ function run()
             y8_2[i] = solver8.y_curr[2]
         end
     end
+    err8[1] = err8[2]
     print("\nThe stiff Brusselator with ICs (3.5, 2.5) ran with statistics:\n")
     print("   ", PF.toString(solver8.steps), " steps taken with ",
           PF.toString(solver8.repeats), " steps repeated\n")

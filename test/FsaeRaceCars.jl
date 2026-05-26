@@ -116,6 +116,10 @@ import
 export
     run
     
+const
+    mph2fps = 1.467     # 1 mph = 1.467 ft./sec.
+    speed   = 10mph2fps # speed of car, ft./sec.
+
 struct FsaeRaceCar
     m::Float64     # mass of car and driver
     w::Float64     # weight of car and driver
@@ -190,7 +194,7 @@ struct Bump
     end
 end # Bump
 
-function speedBump(bump::Bump, position::Float64, speed::Float64)::Tuple
+function speedBump(bump::Bump, position::Float64)::Tuple
     if position < 0.0 || position > bump.width
         R = 0.0
         Ṙ = 0.0
@@ -208,7 +212,7 @@ function speedBump(bump::Bump, position::Float64, speed::Float64)::Tuple
     return (R, Ṙ)
 end # speedBump
     
-function mogul(bump::Bump, position::Float64, speed::Float64)::Tuple
+function mogul(bump::Bump, position::Float64)::Tuple
     if position ≥ 0.0 && position < bump.width
         location = position
     elseif position ≥ bump.width && position < 2bump.width
@@ -222,61 +226,58 @@ function mogul(bump::Bump, position::Float64, speed::Float64)::Tuple
     else
         location = -1.0
     end
-    return speedBump(bump, location, speed)
+    return speedBump(bump, location)
 end # mogul
 
-function trajectory(time::Float64, speed::Float64)::Tuple
-    mph2fps = 1.467
-    speed = speed * mph2fps
-    x = speed * time
-    v = speed
-    return (x, v)
+function trajectory(time::Float64)::Float64
+    position = speed * time
+    return position
 end # trajectory
 
-function roadwayDF(car::FsaeRaceCar, bump::Bump, time::Float64, speed::Float64)::Tuple
-    (position, speed) = trajectory(time, speed)
-    (R, Ṙ) = mogul(bump, position, speed)
+function roadwayDF(car::FsaeRaceCar, bump::Bump, time::Float64)::Tuple
+    position = trajectory(time)
+    (R, Ṙ)   = mogul(bump, position)
     return (R, Ṙ)
 end # roadwayDF
 
-function roadwayPF(car::FsaeRaceCar, bump::Bump, time::Float64, speed::Float64)::Tuple
+function roadwayPF(car::FsaeRaceCar, bump::Bump, time::Float64)::Tuple
     offset = 0.5         # distance passenger side trails the driver's side
     
-    (position, speed) = trajectory(time, speed)
+    position = trajectory(time)
     position = position - offset
-    (R, Ṙ) = mogul(bump, position, speed)
+    (R, Ṙ) = mogul(bump, position)
     return (R, Ṙ)
 end # roadwayDF
 
-function roadwayPR(car::FsaeRaceCar, bump::Bump, time::Float64, speed::Float64)::Tuple
+function roadwayPR(car::FsaeRaceCar, bump::Bump, time::Float64)::Tuple
     offset = 0.5         # distance passenger side trails the driver's side
     wheelbase = car.lf + car.lr
 
-    (position, speed) = trajectory(time, speed)
+    position = trajectory(time)
     position = position - wheelbase - offset
-    (R, Ṙ) = mogul(bump, position, speed)
+    (R, Ṙ) = mogul(bump, position)
     return (R, Ṙ)
 end # roadwayDF
 
-function roadwayDR(car::FsaeRaceCar, bump::Bump, time::Float64, speed::Float64)::Tuple
+function roadwayDR(car::FsaeRaceCar, bump::Bump, time::Float64)::Tuple
     wheelbase = car.lf + car.lr
 
-    (position, speed) = trajectory(time, speed)
+    position = trajectory(time)
     position = position - wheelbase
-    (R, Ṙ) = mogul(bump, position, speed)
+    (R, Ṙ) = mogul(bump, position)
     return (R, Ṙ)
 end # roadwayDF
 
-function forcingFn(car::FsaeRaceCar, time::Float64, speed::Float64)::Vector{Float64}
+function forcingFn(car::FsaeRaceCar, time::Float64)::Vector{Float64}
     height = 1.0 / 6.0
     width = 2.0
     top = 0.5
     bump = Bump(height, width, top)
     
-    (R1, Ṙ1) = roadwayDF(car, bump, time, speed)
-    (R2, Ṙ2) = roadwayPF(car, bump, time, speed)
-    (R3, Ṙ3) = roadwayPR(car, bump, time, speed)
-    (R4, Ṙ4) = roadwayDR(car, bump, time, speed)
+    (R1, Ṙ1) = roadwayDF(car, bump, time)
+    (R2, Ṙ2) = roadwayPF(car, bump, time)
+    (R3, Ṙ3) = roadwayPR(car, bump, time)
+    (R4, Ṙ4) = roadwayDR(car, bump, time)
     
     F = Vector{Float64}(undef, 3)
     F[1] = (car.w - car.c1 * Ṙ1 - car.c2 * Ṙ2 - car.c3 * Ṙ3 - car.c4 * Ṙ4 
@@ -304,14 +305,14 @@ function ICs(car::FsaeRaceCar)::Tuple
     return (x0, v0)
 end # ICs
 
-function acceleration(car::FsaeRaceCar, time::Float64, speed::Float64, x::Vector{Float64}, v::Vector{Float64})::Vector{Float64}
+function acceleration(car::FsaeRaceCar, time::Real, position::Vector{<:Real}, velocity::Vector{<:Real})::Vector{<:Real}
     a = Vector{Float64}(undef, 3)
-    f = forcingFn(car, time, speed)
+    f = forcingFn(car, time)
     M = massMtx(car)
     C = dampingMtx(car)
-    Cv = C * v
+    Cv = C * velocity
     K = stiffnessMtx(car)
-    Kx = K * x
+    Kx = K * position
     a = M \ (f - Kx - Cv)
     return a
 end # acceleration
@@ -344,24 +345,32 @@ function run()
     
     # establish the initial state
     t0 = 0.0
-    speed = 10.0   # speed of the car in mph
-    (x0, v0) = ICs(car)
-    a0 = acceleration(car, t0, speed, x0, v0)
+    ic = ICs(car)
+    x0 = ic[1]
+    v0 = ic[2]
+    a0 = acceleration(car, t0, x0, v0)
     
-    print("\nThe static deflection is:\n")
-    print("  z = ", PF.toString(12x0[1]), " inches\n")
-    print("  θ = ", PF.toString(180x0[2]/π), " degrees\n") 
-    print("  φ = ", PF.toString(180x0[3]/π), " degrees")
-    
-    function ode(x::Float64, y::Vector{Float64}, y′::Vector{Float64})::Tuple{Vector{Float64}, Vector{Float64}}
-        # the ODE to be solved
-        y″ = acceleration(car, x, speed, y, y′)
-        # this ODE, as written, has no internal or hidden variables
-        z = Vector{Float64}(undef, 0)
-        return y″, z
-    end # ode
+    print("\nThe initial state is:\n")
+    print("  z  = ", PF.toString(12x0[1]), " in.\n")
+    print("  z′ = ", PF.toString(12v0[1]), " in./sec.\n")
+    print("  z″ = ", PF.toString(12a0[1]), " in./sec.²\n")
+    print("  θ  = ", PF.toString(180x0[2]/π), " deg.\n") 
+    print("  θ′ = ", PF.toString(180v0[2]/π), " deg./sec.\n") 
+    print("  θ″ = ", PF.toString(180a0[2]/π), " deg./sec.²\n") 
+    print("  φ  = ", PF.toString(180x0[3]/π), " deg.\n")
+    print("  φ′ = ", PF.toString(180v0[3]/π), " deg./sec.\n")
+    print("  φ″ = ", PF.toString(180a0[3]/π), " deg./sec.²\n")
 
-    solver = SecondOrderPECE(ode, N, t0, T, x0, v0, tol)
+    function my_ode(x::Real, y::Vector{<:Real}, y′::Vector{<:Real})::Tuple{Vector{<:Real}, Vector{<:Real}}
+        # the ODE to be solved
+        y″ = acceleration(car, x, y, y′)
+        
+        # this ODE, as written, has no internal or hidden variables
+        w = Vector{Float64}(undef, 0)
+        return (y″, w)
+    end # ode
+    
+    solver = SecondOrderPECE(my_ode, N, t0, T, x0, v0, tol)
     
     t  = zeros(Float64, N+1)    # time
     ε  = zeros(Float64, N+1)    # local truncation error
@@ -376,14 +385,14 @@ function run()
     φ″ = zeros(Float64, N+1)    # acceleration of roll in deg/sec²
     
     t[1]  = t0
-    ε[1]  = tol
     z[1]  = 12x0[1]
     θ[1]  = 180x0[2] / π
     φ[1]  = 180x0[3] / π
     z′[1] = 12v0[1]
     θ′[1] = 180v0[2] / π
     φ′[1] = 180v0[3] / π
-    a0    = ode(t0, x0, v0)
+    ode   = solver.ode(t0, x0, v0)
+    a0    = ode[1]
     z″[1] = 12a0[1]
     θ″[1] = 180a0[2] / π
     φ″[1] = 180a0[3] / π
@@ -406,6 +415,7 @@ function run()
             φ″[i] = 180solver.y″_curr[3] / π
         end
     end # while
+    ε[1] = ε[2]
     print("\nThe FSAE race car analysis ran with statistics:\n")
     print("   ", PF.toString(solver.steps), " steps taken with ",
           PF.toString(solver.repeats), " steps repeated\n")
