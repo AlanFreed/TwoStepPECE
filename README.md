@@ -10,7 +10,7 @@ Pkg.add(url = "https://github.com/AlanFreed/PhysicalFields.jl")
 Pkg.add(url = "https://github.com/AlanFreed/TwoStepPECE.jl")
 ```
 
-This package provides a numerical method for solving systems of first- and second-order ODEs. Specifically, the predict/evaluate/correct/evaluate (PECE) methods of Freed (2017) have been implemented. Because these methods are two-step integrators, they are not self starting, so one-step methods are required to take the first integration step.
+This package provides numerical methods for solving systems of first- and second-order ODEs. Specifically, the predict/evaluate/correct/evaluate (PECE) methods of Freed (2017) have been implemented. Because these methods are two-step integrators, they are not self starting, so one-step methods are required to take the first integration step.
 
 Notation  $y′$  denotes  $\mathrm{d}y/\mathrm{d}x$, while notation  $y″$  denotes  $\mathrm{d}²y/\mathrm{d}x²$.
 
@@ -18,11 +18,13 @@ Notation  $y′$  denotes  $\mathrm{d}y/\mathrm{d}x$, while notation  $y″$  de
 
 For a first-order ODE, one solves
 $$
-(y′, z) = \mathrm{f}(x, y)
+(y′, z) = \mathrm{f}(c, x, y)
 $$
-where argument $x$ is a scalar-valued independent variable, and argument $y$ is a vector holding the dependent variables. A tuple is returned whose first element $y′$ is the derivative of the dependent variables, while the second entry $z$ provides a possible collection of internal or hidden variables that arise in problems from time to time. Such an ODE is subject to initial conditions of  $y₀$ at  $x₀$  so that
+where $c$ is a vector containing the model's constants, $x$ is a scalar-valued independent variable, $y$ is a vector-valued grouping of dependent variables whose derivatives $y′$ denote $\mathrm{d}y/\mathrm{d}x$,, with $z$ being a set of internal or hidden variables that will often be empty.
+
+Such an ODE is subject to initial conditions of  $y₀$ at  $x₀$  so that
 $$
-(y′₀, z₀)  = \mathrm{f}(x₀, y₀)  .
+(y′₀, z₀) = \mathrm{f}(c, x₀, y₀)  .
 $$
 For a returned tuple, say $(y′, z)$, vector $y′$ must exist, while vector $z$ may be empty.
 
@@ -30,11 +32,13 @@ For a returned tuple, say $(y′, z)$, vector $y′$ must exist, while vector $z
 
 For a second-order ODE, one solves
 $$
-(y″, z)  = \mathrm{f}(x, y, y′)
+(y″, z)  = \mathrm{f}(c, x, y, y′)
 $$
-where argument $x$ is a scalar-valued independent variable, while argument $y$ is a vector holding the dependent variables whose rates of change are held in argument $y′$.  Such an ODE is subject to initial conditions of $y₀$ and $y′₀$ at $x₀$ so that
+where $c$ is a vector containing the model's constants, $x$ is a scalar-valued independent variable, $y$ is a vector-valued grouping of dependent variables whose first-order derivatives $y′$ denote $\mathrm{d}y/\mathrm{d}x$, and whose second-order derivatives $y″$ denote $\mathrm{d}²y/\mathrm{d}x²$, with $z$ being a set of internal or hidden variables that will often be empty.
+
+Such an ODE is subject to initial conditions of  $y₀$ and $y′₀$ at  $x₀$  so that
 $$
-(y″₀, z₀) = \mathrm{f}(x₀, y₀, y′₀) .
+(y″₀, z₀) = \mathrm{f}(c, x₀, y₀, y′₀) .
 $$
 For a returned tuple, say $(y″, z)$, vector $y″$ must exist, while vector $z$ may be empty.
 
@@ -62,9 +66,9 @@ $$
 \begin{aligned}
     x₁  & = x₀ + h₀ \\
     y₁  & = y₀ + h₀y′₀ \\
-    (y′₁, z₁) & = \mathrm{f}(x₁, y₁) \\
+    (y′₁, z₁) & = \mathrm{f}(c, x₁, y₁) \\
     y₁  & ← y₀ + (h₀/2)(y′₁ + y′₀) \\
-    (y′₁, z₁) & ← \mathrm{f}(x₁, y₁)
+    (y′₁, z₁) & ← \mathrm{f}(c, x₁, y₁)
 \end{aligned}
 $$
 which is the predict/evaluate/correct/evaluate (PECE) method of Heun. 
@@ -75,10 +79,10 @@ $$
     x₁  & = x₀ + h₀ \\
     y₁  & = y₀ + h₀y′₀ + (h₀²/2)y″₀ \\
     y′₁ & = y′₀ + h₀y″₀ \\
-    (y″₁, z₁) & = \mathrm{f}(x₁, y₁, y′₁) \\
+    (y″₁, z₁) & = \mathrm{f}(c, x₁, y₁, y′₁) \\
     y₁  & ←  y₀ + (h₀/2)(y′₁ + y′₀) - (h₀²/12)(y″₁ - y″₀) \\
     y′₁ & ← y′₀ + (h₀/2)(y″₁ + y″₀) \\
-    (y″₁, z₁)  & ← \mathrm{f}(x₁, y₁, y′₁)
+    (y″₁, z₁)  & ← \mathrm{f}(c, x₁, y₁, y′₁)
 \end{aligned}
 $$
 where the solution for  $y′$  is the same as a solution for $y$ given a first-order ODE, viz., Heun's method.
@@ -119,7 +123,9 @@ while all remaining steps have a local truncation error of
 $$
 error = (2h/3) \| y′_{pred} - 2y′_{curr} + y′_{prev} \|
 $$
-with information being kept for the previous, current and next steps of integration, e.g., $y_{prev}$, $y_{curr}$ and $y_{next}$. Note that $\mathrm{d}²f_n = (1/h²)(f_{n+1} - 2f_n + f_{n-1})$ is a finite difference for approximating the second derivative of $f$, where $f = y′$ in this case.
+with information being kept for the previous, current and next steps of integration, e.g., $y_{prev}$, $y_{curr}$ and $y_{next}$. 
+
+**Note** that $\mathrm{d}²f_n = (1/h²)(f_{n+1} - 2f_n + f_{n-1})$ is a finite difference for approximating the second derivative of $f$, where $f = y′$ in our case.
 
 For second-order ODEs, the first solution step has a local truncation error of
 $$
@@ -148,9 +154,9 @@ $$
 \begin{aligned}
     x₁ & = x₀ + h \\
     y₁ & = y₀ + hy′₀ & & \text{P} \\
-    (y′₁, z₁) & = \mathrm{f}(x₁, y₁) & & \text{E} \\
+    (y′₁, z₁) & = \mathrm{f}(c, x₁, y₁) & & \text{E} \\
     y₁ & ← y₀ + (h/2)(y′₁ + y′₀) & & \text{C} \\
-    (y′₁, z₁) & ← \mathrm{f}(x₁, y₁) & & \text{E}
+    (y′₁, z₁) & ← \mathrm{f}(c, x₁, y₁) & & \text{E}
 \end{aligned}
 $$
 where the predicted value for  $y′₁$ (the first of two evaluations for  $y′₁$  to appear in the above expressions) is used in the computation of truncation error. Upon completion of a first step, assign
@@ -173,9 +179,9 @@ $$
 \begin{aligned}
     x_{next} & = x_{curr} + h & & \\
     y_{next} & = (1/3)(4y_{curr} - y_{prev}) + (2h/3)(2y′_{curr} - y′_{prev}) & & \text{P} \\
-    (y′_{next}, z_{next}) & = \mathrm{f}(x_{next}, y_{next}) & & \text{E} \\
+    (y′_{next}, z_{next}) & = \mathrm{f}(c, x_{next}, y_{next}) & & \text{E} \\
     y_{next} & ← (1/3)(4y_{curr} - y_{prev}) + (2h/3)y′_{next} & & \text{C} \\
-    (y′_{next}, z_{next}) & ← \mathrm{f}(x_{next}, y_{next}) & & \text{E}
+    (y′_{next}, z_{next}) & ← \mathrm{f}(c, x_{next}, y_{next}) & & \text{E}
 \end{aligned}
 $$
 where the corrector in this PECE method is the well-known BDF2 method (backward difference formula of second order) made popular by Gear.  This method is second-order accurate and, most importantly, A stable. The predicted value for  $y′_{next}$  is used in the evaluation of truncation error.
@@ -188,10 +194,10 @@ $$
     x₁ & = x₀ + h \\
     y₁ & =  y₀ + hy′₀ + (h²/2)y″₀ & & \text{P} \\
     y′₁ & = y′₀ + hy″₀ & & \\
-    (y″₁, z₁) & = \mathrm{f}(x₁, y₁, y′₁) & & \text{E} \\
+    (y″₁, z₁) & = \mathrm{f}(c, x₁, y₁, y′₁) & & \text{E} \\
     y₁ & ←  y₀ + (h/2)(y′₁ + y′₀) - (h²/12)(y″₁ - y″₀) & &  \text{C} \\
     y′₁ & ← y′₀ + (h/2)(y″₁ + y″₀) & & \\
-    (y″₁, z₁) & ← \mathrm{f}(x₁, y₁, y′₁) & & \text{E}
+    (y″₁, z₁) & ← \mathrm{f}(c, x₁, y₁, y′₁) & & \text{E}
 \end{aligned}
 $$
 where the predicted values for  $y′₁$  and  $y″₁$ (their first appearances in the above formulæ) are used in the evaluation of truncation error. Upon completion of a first step, assign
@@ -218,10 +224,10 @@ $$
                     + (h/6)(3y′_{curr} + y′_{prev}) 
                     + (h²/36)(31y″_{curr} - y″_{prev}) & &  \text{P} \\
     y′_{next} & = (1/3)(4y′_{curr} - y′_{prev}) + (2h/3)(2y″_{curr} - y″_{prev}) & & \\
-    (y″_{next}, z_{next}) & = \mathrm{f}(x_{next}, y_{next}, y′_{next}) & & \text{E} \\
+    (y″_{next}, z_{next}) & = \mathrm{f}(c, x_{next}, y_{next}, y′_{next}) & & \text{E} \\
     y_{next} & ← (1/3)*(4y_{curr} - y_{prev}) + (h/24)(y′_{next} + 14y′_{curr} + y′_{prev}) + (h²/72)(10y″_{next} + 51y″_{curr} - y″_{prev}) & & \text{C} \\
     y′_{next} & ← (1/3)(4y′_{curr} - y′_{prev}) + (2h/3)y″_{next} & & \\
-    (y″_{next}, z_{next}) & ← \mathrm{f}(x_{next}, y_{next}, y′_{next}) & & \text{E}
+    (y″_{next}, z_{next}) & ← \mathrm{f}(c, x_{next}, y_{next}, y′_{next}) & & \text{E}
 \end{aligned}
 $$
 where the PECE method for integrating $y′_{next} $ is the same as the PECE method used for solving $y_{next}$ in a first-order ODE. 
@@ -420,20 +426,21 @@ where `pece` is a concrete object that implements a PECE solver.
 
 The PECE methods of Freed (2017) are based upon Gear's, implicit, BDF2 method (backward difference formula of second order). BDF2 is an A stable integrator. Specifically, Freed paired Gear's BDF2 formula with a predictor so that it can be implemented as a PECE method.
 
-Given a function `ode` for describing y′ = dy/dx that has an interface of
+Given a function `ode` for describing $y′$ = $\mathrm{d}y/\mathrm{d}x$ that has an interface of
 ```julia
-    ode = function(x::Real, y::Vector{<:Real})::Tuple{Vector{<:Real}, Vector{<:Real}}
+    ode = function(par::Vector{<:Real}, x::Real, y::Vector{<:Real})::Tuple{Vector{<:Real}, Vector{<:Real}}
 ```
-where the first argument of the returned tuple contains the derivative y′, while the second argument contains a collection of internal or hidden variables z, which may be empty. Then a data structure that implements this first-order PECE solver is
+where $par$ is a vector containing the model's constants, $x$ is a scalar-valued independent variable, $y$ is a vector-valued grouping of dependent variables whose derivatives $y′$ denote $\mathrm{d}y/\mathrm{d}x$, with $z$ being a set of internal or hidden variables that will often be empty. Then a data structure that will enable an implementation of this first-order PECE solver is:
 ```julia
 struct FirstOrderPECE <: PECE
-    ode::Function           # The differential equation that is to be solved.
-    N::UInt32               # Number of global steps to be integrated over.
-    dx::Float64             # Step size for for the global integrator.
+    ode::Function           # The differential equation or model to be solved.
+    par::Vector{<:Real}     # The model's constants or parameters.
+    N::Integer              # Number of global steps to be integrated over.
+    dx::Real                # Step size for for the global integrator.
     h::PF.MReal             # Current step size for the local integrator.
     n::PF.MInteger          # Global step counter, n increments to N.
     s::PF.MInteger          # Local step counter, s decrements to 0.
-    x₀::Float64             # Initial value for the independent variable.
+    x₀::Real                # Initial value for the independent variable.
     y₀::Vector{<:Real}      # Initial condition for the dependent variables.
     z₀::Vector{<:Real}      # Initial condition for the internal or hidden variables.
     x_prev::PF.MReal        # Previous value for the independent variable.
@@ -448,7 +455,7 @@ struct FirstOrderPECE <: PECE
     y′_prev::PF.MVector     # Previous values for the derivatives dy/dx.
     y′_curr::PF.MVector     # Current values for the derivatives dy/dx.
     y′_next::PF.MVector     # Next values for the derivatives dy/dx.
-    tol::Float64            # Error tolerance targeted by the PI controller.
+    tol::Real               # Error tolerance targeted by the PI controller.
     ε_curr::PF.MReal        # Truncation error at the current step.
     ε_next::PF.MReal        # Truncation error at the next step.
     steps::PF.MInteger      # Counter for successful steps taken.
@@ -462,30 +469,32 @@ wherein types `MBoolean,` `MInteger,` `MReal` and `MVector` exported by module `
 
 A constructor for this type is:
 ```julia
-function FirstOrderPECE(my_ode::Function,    # The differential equation.
-                        N::Integer,          # Global steps to take.
-                        x₀::Real,            # Solution begins at.
-                        X::Real,             # Solution ends at.
-                        y₀::Vector{<:Real},  # Initial condition.
-                        tol::Real)           # Error tolerance.
+function FirstOrderPECE(my_ode::Function,        # The differential equation.
+                        my_par::Vector{<:Real},  # The model parameters.
+                        N::Integer,              # Global steps to take.
+                        x₀::Real,                # Solution begins at.
+                        X::Real,                 # Solution ends at.
+                        y₀::Vector{<:Real},      # Initial condition.
+                        tol::Real)               # Error tolerance.
 ```
 
 ## Second-Order ODEs
 
-Given a function `ode` for describing y″ = d²y/dx² that has an interface of
+Given a function `ode` for describing $\mathrm{d}²y/\mathrm{d}x²$ that has an interface of
 ```julia
-    ode = function(x::Real, y::Vector{<:Real}, y′::Vector{<:Real})::Tuple{Vector{<:Real}, Vector{<:Real}}
+    ode = function(par::Vector{<:Real}, x::Real, y::Vector{<:Real}, y′::Vector{<:Real})::Tuple{Vector{<:Real}, Vector{<:Real}}
 ```
-where the first argument of the returned tuple contains the second derivative y″, while the second argument contains a collection of internal or hidden variables z, which may be empty. Then a data structure that implements this second-order PECE solver is 
+where $par$ is a vector containing the model's constants, $x$ is a scalar-valued independent variable, $y$ is a vector-valued grouping of dependent variables whose first-order derivatives $y′$ denote $\mathrm{d}y/\mathrm{d}x$ and whose second-order derivatives $y″$ denote $\mathrm{d}²y/\mathrm{d}x²$, with $z$ being a set of internal or hidden variables that will often be empty. Then a data structure that enables an implementation of this  second-order PECE solver is:
 ```julia
 struct SecondOrderPECE <: PECE
-    ode::Function           # The differential equation that is to be solved.
-    N::UInt32               # Number of global steps to be integrated over.
-    dx::Float64             # Step size for for the global integrator.
+    ode::Function           # The differential equation or model to be solved.
+    par::Vector{<:Real}     # The model's constants or parameters.
+    N::Integer              # Number of global steps to be integrated over.
+    dx::Real                # Step size for for the global integrator.
     h::PF.MReal             # Current step size for the local integrator.
     n::PF.MInteger          # Global step counter, n increments to N.
     s::PF.MInteger          # Local step counter, s decrements to 0.
-    x₀::Float64             # Initial value for the independent variable.
+    x₀::Real                # Initial value for the independent variable.
     y₀::Vector{<:Real}      # Initial condition for the dependent variables.
     z₀::Vector{<:Real}      # Initial condition for the internal or hidden variables.
     x_prev::PF.MReal        # Previous value for the independent variable.
@@ -503,7 +512,7 @@ struct SecondOrderPECE <: PECE
     y″_prev::PF.MVector     # Previous values for the derivatives d²y/dx².
     y″_curr::PF.MVector     # Current values for the derivatives d²y/dx².
     y″_next::PF.MVector     # Next values for the derivatives d²y/dx².
-    tol::Float64            # Error tolerance targeted by the PI controller.
+    tol::Real               # Error tolerance targeted by the PI controller.
     ε_curr::PF.MReal        # Truncation error at the current step.
     ε_next::PF.MReal        # Truncation error at the next step.
     steps::PF.MInteger      # Counter for successful steps taken.
@@ -515,13 +524,14 @@ end
 ```
 whose constructor looks like
 ```julia
-function SecondOrderPECE(my_ode::Function,    # The differential equation.
-                         N::Integer,          # Global steps to take.
-                         x₀::Real,            # Solution begins at.
-                         X::Real,             # Solution ends at.
-                         y₀::Vector{<:Real},  # Initial condition for y.
-                         y′₀::Vector{<:Real}, # Initial condition for dy/dx.
-                         tol::Real)           # Error tolerance.
+function SecondOrderPECE(my_ode::Function,        # The differential equation.
+                         my_par::Vector{<:Real},  # The model's parameters.
+                         N::Integer,              # Global steps to take.
+                         x₀::Real,                # Solution begins at.
+                         X::Real,                 # Solution ends at.
+                         y₀::Vector{<:Real},      # Initial condition for y.
+                         y′₀::Vector{<:Real},     # Initial condition for dy/dx.
+                         tol::Real)               # Error tolerance.
 ```
 
 These PECE solvers solve their assigned ODE via the method `advance!(solver::PECE),` which advances a solution by one local step of size $h$, with the appropriate solver being selected via multiple dispatch.
@@ -702,3 +712,17 @@ The software in the *test* subdirectory implements a roadway that is a series of
 2. A. D. Freed, "A Technical Note: Two-Step PECE Methods for Approximating Solutions to First- and Second-Order ODEs", arXiv:1707.02125 [cs.{NA}], 2017.
 
 3. A. D. Freed and I. Iskovitz, "Development and Applications of a Rosenbrock Integrator," NASA TM 4709, 1996.
+
+# Versions
+
+### Version 0.1.3
+
+Introduced the capability of passing a model's parameters (or constants) making the implementation more versatile.
+
+### Version 0.1.2
+
+Added the capability of storing internal or hidden variables that arise in some ODEs so that they can, e.g., be graphed, post analysis.
+
+### Version 0.1.0
+
+Initial release.  Implements the PECE methods of Freed (2017) for solving first- and second-order differential equations.
