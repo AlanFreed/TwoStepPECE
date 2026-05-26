@@ -2,19 +2,20 @@
 -------------------------------------------------------------------------------
 
 This file solves the following system of first-order ODEs:
-    (y′, z)  = ode(x, y)
+    y′, z = ode(c, x, y)
 subject to an initial condition of y₀ associated with x₀ so that
-    (y′₀, z₀) = ode(x₀, y₀)
-where x is a scalar-valued independent variable, y is a vector-valued grouping
-of dependent variables whose derivatives y′ are dy/dx, with z being a set of
-internal or hidden variables, which may be empty.
+    y′₀, z₀ = ode(c, x₀, y₀)
+where c is a vector containing the model's constants, x is a scalar-valued
+independent variable, y is a vector-valued grouping of dependent variables
+whose derivatives y′ are dy/dx, with z being a set of internal or hidden 
+variables that will often be empty.
 
 A local solution advances along a sub-grid with a local step size h that is
 finer than the global step size dx in which h embeds. The solution spans an
 interval [x₀, X] with dx = (X - x₀) / N such that there will be N nodes of
-integration whereat solutions are sought. Global step size dx is taken to be
-uniform over the entire span of integration, while local step h dynamically
-adjusts to ensure that the truncation error remains less than an user specified 
+integration whereat solutions are sought. The global step dx is taken to be
+uniform over the entire span of integration, while the local step h dynamically
+adjusts to ensure that truncation error remains less than an user specified 
 error tolerance denoted as tol. Global nodes increment as: n = 0, 1, 2, ⋯, N;
 while local nodes decrement as: s = S, S-1, S-2, ⋯, 0.
 
@@ -27,35 +28,35 @@ and for Freed's PECE method based upon Gear's BDF2 method
     error = (2h/3)*∥y′_pred - 2y′_curr + y′_prev∥
 where ∥y∥ is a norm for y. The local truncation error is then given by
     if ∥y_next∥ < 1  then 
-        An absolute measure of error is used.
+        An absolute measure of error is used, viz.,
         ε_next = error
     else  
-        A relative measure for error is used.
+        A relative measure for error is used, viz.,
         ε_next = error / ∥y_next∥
     end
 
 To provide an estimate for the initial step size h to be used when taking 
-the first integration step then, from the initial condition, assign
+the first integration step begin with the initial condition and assign
     h₀ = ∥y₀∥ / ∥y′₀∥
-where ∥y∥ is a norm for y. To help avoid a potential wind-down or a wind-up
-instability, constrain this interval so that dx/100 < h₀ < dx/10 and then 
+where ∥y∥ is a norm for y. To help avoid a potential wind-down or wind-up
+instability, constrain this interval so that dx/100 < h₀ < dx/10, and then 
 integrate
-           x₁ = x₀ + h₀
-           y₁ = y₀ + h₀*y′₀
-    (y′₁, z₁) = ode(x₁, y₁)
-           y₁ ← y₀ + (h₀/2)*(y′₁ + y′₀)
-    (y′₁, z₁) ← ode(x₁, y₁)
+         x₁ = x₀ + h₀
+         y₁ = y₀ + h₀*y′₀
+    y′₁, z₁ = ode(c, x₁, y₁)
+         y₁ ← y₀ + (h₀/2)*(y′₁ + y′₀)
+    y′₁, z₁ ← ode(c, x₁, y₁)
 which is the PECE method of Heun. Afterwords, refine this estimate for h  
 according to the formula
     h = 2|[(∥y₁∥ - ∥y₀∥) / (∥y′₁∥ + ∥y′₀∥)]|
-now constrained by dx/1000 < h to help avoid a potential wind-down instability.
-The local steps required to advance toward the first global node comes from
+now constrained by dx/1000 < h to help avoid potential wind-down instability.
+The local step required to advance towards the first global node comes from
     S = max(2, round(dx/h))
 from which the initial, local, step size is determined to be
     h ← dx / S
 where dx advances the independent variable from global step to global step.
 
-A predict/evaluate/correct/evaluate (PECE) scheme has been implemented (see 
+A predict/evaluate/correct/evaluate (PECE) scheme has been implemented (cf., 
 Freed, 2017). Because this method is a two-step integrator, it is not self 
 starting, so a one-step method is needed to take the first integration step.
 
@@ -68,13 +69,13 @@ repeat
         after which the forward Euler method is integrated as a predictor
             y₁ = y₀ + h*y′₀
         followed by a first approximation for its rate
-            (y′₁, z₁) = ode(x₁, y₁)
+            y′₁, z₁ = ode(c, x₁, y₁)
         saving
             y′_pred = y′₁
         for use when computing error. The trapezoidal rule is its corrector
             y₁ ← y₀ + (h/2)*(y′₁ + y′₀)  
         after which a refined approximation for its rate is re-evaluated
-            (y′₁, z₁) ← ode(x₁, y₁)
+            y′₁, z₁ ← ode(c, x₁, y₁)
         whose local truncation error advances as
             error = (h/2)*∥y′_pred - y′₀∥
             ε_curr ← 1    
@@ -93,13 +94,15 @@ repeat
         Advance the independent variable
             x_next = x_curr + h
         The main PECE solver begins with the predictor
-            y_pred  = (1/3)*(4y_curr - y_prev) + (2h/3)*(2y′_curr - y′_prev) 
+            y_pred = (1/3)*(4y_curr - y_prev) + (2h/3)*(2y′_curr - y′_prev) 
         with a first approximation for its rate then being evaluated as
-            (y′_pred, z_pred) = ode(x_next, y_pred)
+            y′_next, z_next = ode(c, x_next, y_pred)
+        saving
+            y′_pred = y′_next
         for use when computing error. Gear's BDF2 method is the corrector
-            y_next  ← (1/3)*(4y_curr - y_prev) + (2h/3)*y′_pred   
+            y_next ← (1/3)*(4y_curr - y_prev) + (2h/3)*y′_pred   
         after which a refined approximation for its rate is re-evaluated via
-            (y′_next, z_next) ← ode(x_next, y_next)
+            y′_next, z_next ← ode(c, x_next, y_next)
         whose local truncation error advances as
             error  = (2h/3)*∥y′_pred - 2y′_curr + y′_prev∥
             ε_next ← error / max(1, ∥y_next∥)
@@ -113,11 +116,11 @@ repeat
             C = (tol/ε_next)^(0.3/3) * (ε_curr/ε_next)^(0.4/3)
     else
         use the I controller:
-            C = (tol/ε_next)^(1/2)
+            C = (tol/ε_next)^½
     end
     
     Manage the history by advancing the counters and variables:
-    if C > 2 and s > 4 and s mod 2 == 1 then
+    if C > 2 and s > 4 with s mod 2 == 1 then
         x_curr  ← x_next   
         y_curr  ← y_next    
         z_curr  ← z_next   
@@ -178,13 +181,14 @@ References:
 =#
 
 struct FirstOrderPECE <: PECE
-    ode::Function           # The differential equation that is to be solved.
-    N::UInt32               # Number of global steps to be integrated over.
-    dx::Float64             # Step size for for the global integrator.
+    ode::Function           # The differential equation or model to be solved.
+    par::Vector{<:Real}     # The model's constants or model parameters.
+    N::Integer              # Number of global steps to be integrated over.
+    dx::Real                # Step size for for the global integrator.
     h::PF.MReal             # Current step size for the local integrator.
     n::PF.MInteger          # Global step counter, n increments to N.
     s::PF.MInteger          # Local step counter, s decrements to 0.
-    x₀::Float64             # Initial value for the independent variable.
+    x₀::Real                # Initial value for the independent variable.
     y₀::Vector{<:Real}      # Initial condition for the dependent variables.
     z₀::Vector{<:Real}      # Initial condition for the internal variables.
     x_prev::PF.MReal        # Previous value for the independent variable.
@@ -199,7 +203,7 @@ struct FirstOrderPECE <: PECE
     y′_prev::PF.MVector     # Previous values for the derivatives dy/dx.
     y′_curr::PF.MVector     # Current values for the derivatives dy/dx.
     y′_next::PF.MVector     # Next values for the derivatives dy/dx.
-    tol::Float64            # Error tolerance targetted by the PI controller.
+    tol::Real               # Error tolerance targetted by the PI controller.
     ε_curr::PF.MReal        # Truncation error at the current step.
     ε_next::PF.MReal        # Truncation error at the next step.
     steps::PF.MInteger      # Counter for successful steps taken.
@@ -210,12 +214,13 @@ struct FirstOrderPECE <: PECE
 
     # internal constructors
     
-    function FirstOrderPECE(my_ode::Function,    # differential equation
-                            N::Integer,          # global steps to take
-                            x₀::Real,            # solution begins at
-                            x_N::Real,           # solution ends at
-                            y₀::Vector{<:Real},  # initial condition
-                            tol::Real)           # error tolerance
+    function FirstOrderPECE(my_ode::Function,         # differential equation
+                            my_par::Vector{<:Real},   # model's constants
+                            N::Integer,               # global steps to take
+                            x₀::Real,                 # solution begins at
+                            x_N::Real,                # solution ends at
+                            y₀::Vector{<:Real},       # initial condition
+                            tol::Real)                # error tolerance
         # verify inputs
         if N < 2
             N = convert(UInt32, 2)
@@ -246,10 +251,14 @@ struct FirstOrderPECE <: PECE
             end
             y₀ = y_0
         end
-        if 2 ≠ (only(methods(my_ode)).nargs - 1)
-            error("Function my_ode must have two arguments, viz., x and y.")
+        
+        if 3 ≠ (only(methods(my_ode)).nargs - 1)
+            error("Function my_ode must have three arguments, viz., c, x and y.")
         end
-        (y′₀, z₀) = my_ode(x₀, y₀)
+        
+        ode = my_ode(my_par, x₀, y₀)
+        y′₀ = ode[1]  # initial derivative dy₀/dx
+        z₀  = ode[2]  # initial internal variables
         if y′₀ isa Vector{<:Real}
             if length(y′₀) ≠ length(y₀)
                 msg = "The length of vectors y and y′ = f(x,y) differ."
@@ -275,12 +284,14 @@ struct FirstOrderPECE <: PECE
         else
             h₀ = norm_y₀ / norm_y′₀
         end
-        x₁  = x₀ + h₀
-        y₁  = y₀ + h₀*y′₀
-        y′₁ = my_ode(x₁, y₁)
-        y₁  = y₀ + (h₀/2)*(y′₁ + y′₀)
-        y′₁ = my_ode(x₁, y₁)
-        h   = 2abs((LA.norm(y₁) - norm_y₀) / (LA.norm(y′₁) + norm_y′₀))
+        x₁ = x₀ + h₀
+        y₁ = y₀ + h₀*y′₀
+        ode = my_ode(my_par, x₁, y₁)
+        y′₁ = ode[1]  # trial predicted derivative dy₁/dx
+        y₁ = y₀ + (h₀/2)*(y′₁ + y′₀)
+        ode = my_ode(my_par, x₁, y₁)
+        y′₁ = ode[1]  # trial corrected derivative dy₁/dx
+        h = 2abs((LA.norm(y₁) - norm_y₀) / (LA.norm(y′₁) + norm_y′₀))
         if h < dx/1000
             h = dx / 1000
         end
@@ -290,15 +301,18 @@ struct FirstOrderPECE <: PECE
         S = Int(max(2, round(dx/h)))
         h = dx / S
         
-        # Determine the truncation error.
+        # Take first integration step and determine truncation error.
         x₁  = x₀ + h
         y₁  = y₀ + h*y′₀
-        y′₁ = my_ode(x₁, y₁)
+        ode = my_ode(my_par, x₁, y₁)
+        y′₁ = ode[1]  # predicted derivative dy₁/dx
         err = (h/2)*LA.norm(y′₁ - y′₀)
         
         # Finish integration with the corrector.
-        y₁        = y₀ + (h/2)*(y′₁ + y′₀)
-        (y′₁, z₁) = my_ode(x₁, y₁)
+        y₁  = y₀ + (h/2)*(y′₁ + y′₀)
+        ode = my_ode(my_par, x₁, y₁)
+        y′₁ = ode[1]  # corrected derivative dy₁/dx₁
+        z₁  = ode[2]  # corrected internal variables
         
         # Assign the history variables.
         x_prev  = PF.MReal(x₀)
@@ -331,7 +345,7 @@ struct FirstOrderPECE <: PECE
         atNode  = PF.MBoolean(false)
         
         print("\n.")
-        new(my_ode, N, dx, h, n, s, x₀, y₀, z₀, 
+        new(my_ode, my_par, N, dx, h, n, s, x₀, y₀, z₀, 
             x_prev, x_curr, x_next, y_prev, y_curr, y_next, 
             z_prev, z_curr, z_next, y′_prev, y′_curr, y′_next, 
             tol, ε_curr, ε_next, steps, doubled, halved, repeats, atNode)
@@ -339,15 +353,16 @@ struct FirstOrderPECE <: PECE
     
     # constructor called by JSON3
     
-    function FirstOrderPECE(my_ode::Function,
-                            N::UInt32,
-                            dx::Float64,
+    function FirstOrderPECE(ode::Function,
+                            par::Vector{<:Real},
+                            N::Integer,
+                            dx::Real,
                             h::PF.MReal,
                             n::PF.MInteger,
                             s::PF.MInteger,
-                            x₀::Float64,
-                            y₀::Vector{Float64},
-                            z₀::Vector{Float64},
+                            x₀::Real,
+                            y₀::Vector{<:Real},
+                            z₀::Vector{<:Real},
                             x_prev::PF.MReal,
                             x_curr::PF.MReal,
                             x_next::PF.MReal,
@@ -360,7 +375,7 @@ struct FirstOrderPECE <: PECE
                             y′_prev::PF.MVector,
                             y′_curr::PF.MVector,
                             y′_next::PF.MVector,
-                            tol::Float64,
+                            tol::Real,
                             ε_curr::PF.MReal,
                             ε_next::PF.MReal,
                             steps::PF.MInteger,
@@ -369,7 +384,7 @@ struct FirstOrderPECE <: PECE
                             repeats::PF.MInteger,
                             atNode::PF.MBoolean)
         
-        new(my_ode, N, dx, h, n, s, x₀, y₀, z₀, 
+        new(ode, par, N, dx, h, n, s, x₀, y₀, z₀, 
             x_prev, x_curr, x_next, y_prev, y_curr, y_next, 
             z_prev, z_curr, z_next, y′_prev, y′_curr, y′_next, 
             tol, ε_curr, ε_next, steps, doubled, halved, repeats, atNode)
@@ -423,12 +438,14 @@ function advance!(pece::FirstOrderPECE)
     # apply a predictor that pairs with Gear's BDF2 formula
     y_pred  = (1/3)*(4y_curr - y_prev) + (2h/3)*(2y′_curr - y′_prev)
     # evaluate the ODE
-    (y′_pred, z_pred) = pece.ode(x_next, y_pred)
+    ode = pece.ode(pece.par, x_next, y_pred)
+    y′_pred = ode[1]
     # apply Gear's BDF2 formula as the corrector:
     y_next = (1/3)*(4y_curr - y_prev) + (2h/3)*y′_pred
     # re-evaluate the ODE:
-    (y′_next, z_next) = pece.ode(x_next, y_next)
-    
+    ode = pece.ode(pece.par, x_next, y_next)
+    y′_next = ode[1]
+    z_next  = ode[2]
     # determine the local truncation error:
     err = (2h/3)*LA.norm(y′_pred - 2y′_curr + y′_prev)
     ε_next = err / max(1, LA.norm(y_next))
