@@ -1,39 +1,38 @@
 #=
 -------------------------------------------------------------------------------
 Created on Sun 22 Feb 2026
-Updated on Tue 26 May 2026
+Updated on Tue 16 Jun 2026
 =#
 
 module TwoStepPECE
 
 using
-    JSON3,
     LinearAlgebra,
-    PhysicalFields,
-    StructTypes
+    PhysicalFields
     
 import
     LinearAlgebra  as LA,
     PhysicalFields as PF
 
 export
-    # abstract type
+    # abstract types
+    Model,
     PECE,
     
     # concrete types
     FirstOrderPECE,
     SecondOrderPECE,
     
-    # functions
-    toFile,
-    fromFile,
-    
     # solver functions
     advance!
+    
+    # PECE solvers cannot be made persistent because their data structures
+    # contain functions, which cannot be made persistent.
 #=
 -------------------------------------------------------------------------------
 =#
 
+abstract type Model end
 abstract type PECE end
 
 #=
