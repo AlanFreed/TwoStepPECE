@@ -2,8 +2,8 @@
 -------------------------------------------------------------------------------
 
     author:  Alan Freed
-    date:    March 18, 2026
-    updated: May 24, 2026
+    date:    Mar 18 2026
+    updated: Jun 18 2026
     
     To illustrate this class of problems, consider a vibration model for a car 
     in three degrees of freedom: heave, pitch and roll, all measured at the 
@@ -14,7 +14,7 @@
     v = {dh/dt, dp/dt, dr/dt}^T
     a = {d²h/dt², d²p/dt², d²r/dt²}^T  and this is given by the equation:
     
-    a = M^{-1} [fFn(t) - C*v - K*x]
+    a = M^{-1} [ff(t) - C*v - K*x]
 
     Heave is in feet, while pitch and roll are in radians, per FSAE rules. 
     Heave is positive downward (towards the ground). Pitch is positive when 
@@ -23,26 +23,27 @@
     
     The mass matrix  M  for this 3 degree-of-freedom (DOF) problem is
             ⌈ m   0  0  ⌉                        ⌈ 1/m  0    0   ⌉
-        M = | 0  Jy  0  |    so that    M^{-1} = |  0  1/Jy      |
-            ⌊ 0   0  Jx ⌋                        ⌊  0   0   1/Jx ⌋
-    where m is the mass of the vehicle in slugs, while Jx and Jy are the
-    moments of inertia in units of slugs.ft² about the x and y axes, per
-    FSAE rules.  
+        M = | 0  Jᵧ  0  |    so that    M^{-1} = |  0  1/Jᵧ      |
+            ⌊ 0   0  Jₓ ⌋                        ⌊  0   0   1/Jₓ ⌋
+    where m is the mass of the vehicle in slugs, while Jₓ and Jᵧ are the
+    moments of inertia in units of slugs.ft² about the X and Y axes, 
+    per FSAE rules.  The X axis is longitudinal, the Y axis is radial, 
+    and the Z axis is verticle.  They form a right-handed triad.
     
     The symmetric damping matrix C for this 3 DOF car simulation is
-            ⌈ c11 c12 c13 ⌉
-        C = | c12 c22 c23 |
-            ⌊ c13 c23 c33 ⌋
+            ⌈ C₁₁ C₁₂ C₁₃ ⌉
+        C = | C₁₂ C₂₂ C₂₃ |
+            ⌊ C₁₃ C₂₃ C₃₃ ⌋
     wherein
-        c11 = c1 + c2 + c3 + c4
-        c12 = −(c1 + c2) lf + (c3 + c4) lr
-        c13 = −(c1 − c2) rf + (c3 − c4) rr 
-        c22 = (c1 + c2) lf^2 + (c3 + c4) lr^2
-        c23 = -(c1 − c2) lf rf + (c3 − c4) lr rr
-        c33 = (c1 + c2) rf^2 + (c3 + c4) rr^2
-    where c1 is the damping of the driver front shock absorber, c2 is the
-    damping of the passenger front shock absorber, c3 is the damping of the
-    passenger rear shock absorber, c4 is the damping of the driver rear 
+        C₁₁ = c₁ + c₂ + c₃ + c₄
+        C₁₂ = −(c₁ + c₂) lf + (c₃ + c₄) lr
+        C₁₃ = −(c₁ − c₂) rf + (c₃ − c₄) rr 
+        C₂₂ = (c₁ + c₂) lf² + (c₃ + c₄) lr²
+        C₂₃ = -(c₁ − c₂) lf rf + (c₃ − c₄) lr rr
+        C₃₃ = (c₁ + c₂) rf² + (c₃ + c₄) rr²
+    where c₁ is the damping of the driver-front shock absorber, c₂ is the
+    damping of the passenger-front shock absorber, c₃ is the damping of the
+    passenger-rear shock absorber, c₄ is the damping of the driver-rear 
     shock absorber, all of which have units of lbf/(ft/sec).  Parameter lf  
     is the distance from the center of gravity (CG) to the front axle, lr 
     is the distance from the CG to the rear axle, rf  is the radial distance 
@@ -51,56 +52,67 @@
     patch at the rear axle, with distances being in feet, per FSAE rules.
     
     The symmetric stiffness matrix K for this 3 DOF car simulation is
-            ⌈ k11 k12 k13 ⌉
-        K = | k12 k22 k23 |
-            ⌊ k13 k23 k33 ⌋
+            ⌈ K₁₁ K₁₂ K₁₃ ⌉
+        K = | K₁₂ K₂₂ K₂₃ |
+            ⌊ K₁₃ K₂₃ K₃₃ ⌋
     wherein
-        k11 = k1 + k2 + k3 + k4
-        k12 = −(k1 + k2) lf + (k3 + k4) lr
-        k13 = −(k1 − k2) rf + (k3 − k4) rr 
-        k22 = (k1 + k2) lf^2 + (k3 + k4) lr^2
-        k23 = -(k1 − k2) lf rf + (k3 − k4) lr rr
-        k33 = (k1 + k2) rf^2 + (k3 + k4) rr^2
-    where k1 is the stiffness of the driver front spring, k2 is the
-    stiffness of the passenger front spring, k3 is the stiffness of the
-    passenger rear spring, k4 is the stiffness of the driver rear spring,
+        K₁₁ = k₁ + k₂ + k₃ + k₄
+        K₁₂ = −(k₁ + k₂) lf + (k₃ + k₄) lr
+        K₁₃ = −(k₁ − k₂) rf + (k₃ − k₄) rr 
+        K₂₂ = (k₁ + k₂) lf² + (k₃ + k₄) lr²
+        K₂₃ = -(k₁ − k₂) lf rf + (k₃ − k₄) lr rr
+        K₃₃ = (k₁ + k₂) rf² + (k₃ + k₄) rr²
+    where k₁ is the stiffness of the driver-front spring, k₂ is the
+    stiffness of the passenger-front spring, k₃ is the stiffness of the
+    passenger-rear spring, k₄ is the stiffness of the driver-rear spring,
     all of which have units of lb/ft, per FSAE rules. The other parameters 
     are as defined for the damping matrix.
-        
-    The forcing function  fFn  for thie 3 DOF car simulation is
-              ⌈ f1 ⌉
-        fFn = | f2 |
-              ⌊ f3 ⌋
+    
+    The forcing function ff for this 3 DOF car simulation is
+             ⌈ ff₁ ⌉
+        ff = | ff₂ |
+             ⌊ ff₃ ⌋
     wherein
-       f1 = w − c1 Ṙ1 − c2 Ṙ2 − c3 Ṙ3 − c4 Ṙ4 
-          −  k1 R1 − k2 R2 − k3 R3 − k4 R4
-       f2 = (c1 Ṙ1 + c2 Ṙ2 + k1 R1 + k2 R2) lf 
-          − (c3 Ṙ3 + c4 Ṙ4 + k3 R3 + k4 R4) lr
-       f3 = (c1 Ṙ1 − c2 Ṙ2 + k1 R1 − k2 R2) rf 
-          − (c3 Ṙ3 − c4 Ṙ4 + k3 R3 − k4 R4) rr
-    where w is the weight of the car in pounds, R1, R2, R3, R4 are the 
+             ⌈ w ⌉   ⌈  c₁     c₂     c₃     c₄    ⌉ ⌈ Ṙ₁ ⌉
+        ff = | 0 | - | -c₁ lf -c₂ lf  c₃ lr  c₄ lr | | Ṙ₂ |
+             ⌊ 0 ⌋   ⌊ -c₁ rf  c₂ rf  c₃ rr -c₄ rr ⌋ | Ṙ₃ |
+                                                     ⌊ Ṙ₄ ⌋
+                     ⌈  k₁     k₂     k₃     k₄    ⌉ ⌈ R₁ ⌉
+                   - | -k₁ lf -k₂ lf  k₃ lr  k₄ lr | | R₂ |
+                     ⌊ -k₁ rf  k₂ rf  k₃ rr -k₄ rr ⌋ | R₃ |
+                                                     ⌊ R₄ ⌋
+    where w is the weight of the car in pounds, R₁, R₂, R₃, R₄ are the 
     upward displacements of the roadway, which are functions of time, and
-    Ṙ1, Ṙ2, Ṙ3, Ṙ4 are their rates of change, which are also functions of 
-    time. Units are in ft and ft/sec, respectively. The other parameters 
-    are as defined for the damping and stiffness matrices.
+    Ṙ₁, Ṙ₂, Ṙ₃, Ṙ₄ are their rates of change, which are also functions of 
+    time. Units are in ft and ft/sec, respectively. These are the control
+    variables and their time rates-of-change.  The other parameters are
+    as defined for the damping and stiffness matrices.
+       
+    Given the general form for a second-order ODE of:
+        x′ = fₓ(model, t, x, y)         controls: a first-order  ODE
+        y″ = fᵧ(model, t, x, y, y′)    responses: a second-order ODE
+    an instance of `FsaeRaceCar` is the `model,` `fₓ` is described by the
+    function `roadway,` while `fᵧ` is described by the function `vehicle.`
+    The control variables `x` define a vector {R₁, R₂, R₃, R₄}ᵀ, while the
+    response variables `y` define a vector {h, p, r}ᵀ.
     
     Representative parameters for a typical FSAE race car with driver are:
         m = 14       in slug = lbf.sec²/ft
         w = 450      in lbf
-        Jx = 20      in slug.ft²
-        Jy = 45      in slub.ft²
+        Jₓ = 20      in slug.ft²
+        Jᵧ = 45      in slub.ft²
         lf = 3.2     in ft
         lr = 1.8     in ft
         rf = 2.1     in ft
         rr = 2       in ft
-        c1 = 120     in lbf.sec/ft
-        c2 = 120     in lbf.sec/ft
-        c3 = 180     in lbf.sec/ft
-        c4 = 180     in lbf.sec/ft
-        k1 = 1800    in lbf/ft
-        k2 = 1800    in lbf/ft
-        k3 = 3600    in lbf/ft
-        k4 = 3600    in lbf/ft
+        c₁ = 120     in lbf.sec/ft
+        c₂ = 120     in lbf.sec/ft
+        c₃ = 180     in lbf.sec/ft
+        c₄ = 180     in lbf.sec/ft
+        k₁ = 1800    in lbf/ft
+        k₂ = 1800    in lbf/ft
+        k₃ = 3600    in lbf/ft
+        k₄ = 3600    in lbf/ft
 """
 module fsaeRaceCars
 
@@ -120,69 +132,101 @@ const
     mph2fps = 1.467     # 1 mph = 1.467 ft./sec.
     speed   = 10mph2fps # speed of car, ft./sec.
 
-struct FsaeRaceCar
-    m::Float64     # mass of car and driver
-    w::Float64     # weight of car and driver
-    Jx::Float64    # moment of inertia resisting roll
-    Jy::Float64    # moment of inertia resisting pitch
-    lf::Float64    # distance from CG to front axle
-    lr::Float64    # distance from CG to rear axle
-    rf::Float64    # distance from CL to center of tire patch at front axle
-    rr::Float64    # distance from CL to center of tire patch at rear axle
-    c1::Float64    # damping from shock absorber at driver front
-    c2::Float64    # damping from shock absorber at passenger front
-    c3::Float64    # damping from shock absorber at passenger rear
-    c4::Float64    # damping from shock absorber at driver rear
-    k1::Float64    # stiffness from spring at driver front
-    k2::Float64    # stiffness from spring at passenger front
-    k3::Float64    # stiffness from spring at passenger rear
-    k4::Float64    # stiffness from spring at driver rear
-    
-    function FsaeRaceCar(m::Float64, w::Float64, Jx::Float64, Jy::Float64,
+# Describe the car.
+
+struct FsaeRaceCar <: TwoStepPECE.Model
+    M::Matrix{Float64}      # the mass matrix
+    C::Matrix{Float64}      # the damping matrix
+    K::Matrix{Float64}      # the stiffness matrix
+    ffF::Vector{Float64}    # the static contribution to the forcing function
+    ffC::Matrix{Float64}    # the damping matrix for the forcing function
+    ffK::Matrix{Float64}    # the stiffness matrix for the forcing function
+        
+    function FsaeRaceCar(m::Float64,  w::Float64,  Jₓ::Float64, Jᵧ::Float64,
                          lf::Float64, lr::Float64, rf::Float64, rr::Float64,
-                         c1::Float64, c2::Float64, c3::Float64, c4::Float64,
-                         k1::Float64, k2::Float64, k3::Float64, k4::Float64)
-        new(m, w, Jx, Jy, lf, lr, rf, rr, c1, c2, c3, c4, k1, k2, k3, k4)
+                         c₁::Float64, c₂::Float64, c₃::Float64, c₄::Float64,
+                         k₁::Float64, k₂::Float64, k₃::Float64, k₄::Float64)
+        # `m`  is the mass of car and driver
+        # `w`  is the weight of car and driver
+        # `Jₓ` is the moment of inertia resisting roll
+        # `Jᵧ` is the moment of inertia resisting pitch
+        # `lf` is the distance from CG to front axle
+        # `lr` is the distance from CG to rear axle
+        # `rf` is the distance from CL to center of tire patch at front axle
+        # `rr` is the distance from CL to center of tire patch at rear axle
+        # `c₁` is the damping from shock absorber at driver front
+        # `c₂` is the damping from shock absorber at passenger front
+        # `c₃` is the damping from shock absorber at passenger rear
+        # `c₄` is the damping from shock absorber at driver rear
+        # `k₁` is the stiffness from spring at driver front
+        # `k₂` is the stiffness from spring at passenger front
+        # `k₃` is the stiffness from spring at passenger rear
+        # `k₄` is the stiffness from spring at driver rear
+        
+        # Create the mass matrix.
+        M = zeros(Float64, 3, 3)
+        M[1,1] = m
+        M[2,2] = Jᵧ
+        M[3,3] = Jₓ 
+        # Create the damping matrix.
+        C = zeros(Float64, 3, 3)
+        C[1,1] = c₁ + c₂ + c₃ + c₄
+        C[1,2] = -(c₁ + c₂) * lf + (c₃ + c₄) * lr
+        C[1,3] = -(c₁ - c₂) * rf + (c₃ - c₄) * rr
+        C[2,1] = C[1,2]
+        C[2,2] = (c₁ + c₂) * lf^2 + (c₃ + c₄) * lr^2
+        C[2,3] = -(c₁ - c₂) * lf * rf  + (c₃ - c₄) * lr * rr
+        C[3,1] = C[1,3]
+        C[3,2] = C[2,3]
+        C[3,3] = (c₁ + c₂) * rf^2 + (c₃ + c₄) * rr^2
+        # Create the stiffness matrix.
+        K = zeros(Float64, 3, 3)
+        K[1,1] = k₁ + k₂ + k₃ + k₄
+        K[1,2] = -(k₁ + k₂) * lf + (k₃ + k₄) * lr
+        K[1,3] = -(k₁ - k₂) * rf + (k₃ - k₄) * rr 
+        K[2,1] = K[1,2]
+        K[2,2] = (k₁ + k₂) * lf^2 + (k₃ + k₄) * lr^2
+        K[2,3] = -(k₁ - k₂) * lf * rf + (k₃ - k₄) * lr * rr
+        K[3,1] = K[1,3]
+        K[3,2] = K[2,3]
+        K[3,3] = (k₁ + k₂) * rf^2 + (k₃ + k₄) * rr^2
+        # Create the static force vector for the forcing function.
+        ffF = zeros(Float64, 3)
+        ffF[1] = w
+        # Create the damping matrix for the forcing function.
+        ffC = zeros(Float64, 3, 4)
+        ffC[1,1] = c₁
+        ffC[1,2] = c₂
+        ffC[1,3] = c₃
+        ffC[1,4] = c₄
+        ffC[2,1] = -c₁ * lf
+        ffC[2,2] = -c₂ * lf
+        ffC[2,3] = c₃ * lr
+        ffC[2,4] = c₄ * lr
+        ffC[3,1] = -c₁ * rf
+        ffC[3,2] = c₂ * rf
+        ffC[3,3] = c₃ * rr
+        ffC[3,4] = -c₄ * rr
+        # Create the stiffness matrix for the forcing function.
+        ffK = zeros(Float64, 3, 4)
+        ffK[1,1] = k₁
+        ffK[1,2] = k₂
+        ffK[1,3] = k₃
+        ffK[1,4] = k₄
+        ffK[2,1] = -k₁ * lf
+        ffK[2,2] = -k₂ * lf
+        ffK[2,3] = k₃ * lr
+        ffK[2,4] = k₄ * lr
+        ffK[3,1] = -k₁ * rf
+        ffK[3,2] = k₂ * rf
+        ffK[3,3] = k₃ * rr
+        ffK[3,4] = -k₄ * rr
+        
+        new(M, C, K, ffF, ffC, ffK)
     end
 end # FsaeRaceCar
-
-function massMtx(car::FsaeRaceCar)::Matrix{Float64}
-    M = zeros(Float64, 3, 3)
-    M[1,1] = car.m
-    M[2,2] = car.Jy
-    M[3,3] = car.Jx 
-    return M
-end # massMtx
-
-function dampingMtx(car::FsaeRaceCar)::Matrix{Float64}
-    C = zeros(Float64, 3, 3)
-    C[1,1] = car.c1 + car.c2 + car.c3 + car.c4
-    C[1,2] = -(car.c1 + car.c2) * car.lf + (car.c3 + car.c4) * car.lr
-    C[1,3] = -(car.c1 - car.c2) * car.rf + (car.c3 - car.c4) * car.rr
-    C[2,1] = C[1,2]
-    C[2,2] = (car.c1 + car.c2) * car.lf^2 + (car.c3 + car.c4) * car.lr^2
-    C[2,3] = (-(car.c1 - car.c2) * car.lf * car.rf 
-              + (car.c3 - car.c4) * car.lr * car.rr)
-    C[3,1] = C[1,3]
-    C[3,2] = C[2,3]
-    C[3,3] = (car.c1 + car.c2) * car.rf^2 + (car.c3 + car.c4) * car.rr^2
-    return C
-end # dampingMtx
-
-function stiffnessMtx(car::FsaeRaceCar)::Matrix{Float64}
-    K = zeros(Float64, 3, 3)
-    K[1,1] = car.k1 + car.k2 + car.k3 + car.k4
-    K[1,2] = -(car.k1 + car.k2) * car.lf + (car.k3 + car.k4) * car.lr
-    K[1,3] = -(car.k1 - car.k2) * car.rf + (car.k3 - car.k4) * car.rr 
-    K[2,1] = K[1,2]
-    K[2,2] = (car.k1 + car.k2) * car.lf^2 + (car.k3 + car.k4) * car.lr^2
-    K[2,3] = (-(car.k1 - car.k2) * car.lf * car.rf 
-              + (car.k3 - car.k4) * car.lr * car.rr)
-    K[3,1] = K[1,3]
-    K[3,2] = K[2,3]
-    K[3,3] = (car.k1 + car.k2) * car.rf^2 + (car.k3 + car.k4) * car.rr^2
-    return K
-end # stiffnessMtx
+    
+# Create a roadway for the car to traverse.
 
 struct Bump
     height::Float64    # verticle height of a bump in ft
@@ -194,9 +238,11 @@ struct Bump
     end
 end # Bump
 
-function speedBump(bump::Bump, position::Float64)::Tuple
+# Characteristics of a speed bump.
+bump = Bump(1.0/6.0, 2.0, 0.5)  # Bump(height, width, top)
+
+function speedBump(position::Float64)::Float64
     if position < 0.0 || position > bump.width
-        R = 0.0
         Ṙ = 0.0
     else
         if position < (bump.width - bump.top) / 2.0
@@ -206,13 +252,12 @@ function speedBump(bump::Bump, position::Float64)::Tuple
         else
             φ = 2π * (position - bump.top) / (bump.width - bump.top)
         end
-        R = (1.0 - cos(φ)) * bump.height / 2.0
         Ṙ = (π * bump.height / (bump.width - bump.top)) * sin(φ) * speed
     end
-    return (R, Ṙ)
+    return Ṙ
 end # speedBump
     
-function mogul(bump::Bump, position::Float64)::Tuple
+function mogul(position::Float64)::Float64
     if position ≥ 0.0 && position < bump.width
         location = position
     elseif position ≥ bump.width && position < 2bump.width
@@ -226,152 +271,138 @@ function mogul(bump::Bump, position::Float64)::Tuple
     else
         location = -1.0
     end
-    return speedBump(bump, location)
+    return speedBump(location)
 end # mogul
 
-function trajectory(time::Float64)::Float64
+function roadwayDF(car::FsaeRaceCar, time::Float64)::Float64
     position = speed * time
-    return position
-end # trajectory
-
-function roadwayDF(car::FsaeRaceCar, bump::Bump, time::Float64)::Tuple
-    position = trajectory(time)
-    (R, Ṙ)   = mogul(bump, position)
-    return (R, Ṙ)
+    Ṙ = mogul(position)
+    return Ṙ
 end # roadwayDF
 
-function roadwayPF(car::FsaeRaceCar, bump::Bump, time::Float64)::Tuple
+function roadwayPF(car::FsaeRaceCar, time::Float64)::Float64
     offset = 0.5         # distance passenger side trails the driver's side
     
-    position = trajectory(time)
+    position = speed * time
     position = position - offset
-    (R, Ṙ) = mogul(bump, position)
-    return (R, Ṙ)
+    Ṙ = mogul(position)
+    return Ṙ
 end # roadwayDF
 
-function roadwayPR(car::FsaeRaceCar, bump::Bump, time::Float64)::Tuple
+function roadwayPR(car::FsaeRaceCar, time::Float64)::Float64
+    lf = -car.ffK[2,1] / car.ffK[1,1]  # length CG to front axel
+    lr =  car.ffK[2,3] / car.ffK[1,3]  # length CG to real axel
+    wheelbase = lf + lr
     offset = 0.5         # distance passenger side trails the driver's side
-    wheelbase = car.lf + car.lr
 
-    position = trajectory(time)
+    position = speed * time
     position = position - wheelbase - offset
-    (R, Ṙ) = mogul(bump, position)
-    return (R, Ṙ)
+    Ṙ = mogul(position)
+    return Ṙ
 end # roadwayDF
 
-function roadwayDR(car::FsaeRaceCar, bump::Bump, time::Float64)::Tuple
-    wheelbase = car.lf + car.lr
+function roadwayDR(car::FsaeRaceCar, time::Float64)::Float64
+    lf = -car.ffK[2,1] / car.ffK[1,1]  # length CG to front axel
+    lr =  car.ffK[2,3] / car.ffK[1,3]  # length CG to real axel
+    wheelbase = lf + lr
 
-    position = trajectory(time)
+    position = speed * time
     position = position - wheelbase
-    (R, Ṙ) = mogul(bump, position)
-    return (R, Ṙ)
+    Ṙ = mogul(position)
+    return Ṙ
 end # roadwayDF
 
-function forcingFn(car::FsaeRaceCar, time::Float64)::Vector{Float64}
-    height = 1.0 / 6.0
-    width = 2.0
-    top = 0.5
-    bump = Bump(height, width, top)
+# Function roadway is the model's fₓ, viz., x′ = fₓ(model, t, x, y).
+function roadway(car::FsaeRaceCar, t::Float64, x::Vector{Float64}, y::Vector{Float64})::Vector{Float64}
+    # arguments
+    #    car  the car's parameters.
+    #    t    the independent variable, i.e., time.
+    #    x    the control variables, i.e., displacement of the wheels.
+    #    y    the response variables, viz, displacement of the vehicle.
+    # returned
+    #    x′   Vertical velocities of the four wheels caused by a roadway.
+    Ṙ₁ = roadwayDF(car, t)  # driver front
+    Ṙ₂ = roadwayPF(car, t)  # passenger front
+    Ṙ₃ = roadwayPR(car, t)  # passenger rear
+    Ṙ₄ = roadwayDR(car, t)  # driver rear
     
-    (R1, Ṙ1) = roadwayDF(car, bump, time)
-    (R2, Ṙ2) = roadwayPF(car, bump, time)
-    (R3, Ṙ3) = roadwayPR(car, bump, time)
-    (R4, Ṙ4) = roadwayDR(car, bump, time)
+    Ṙ  = [Ṙ₁ , Ṙ₂, Ṙ₃, Ṙ₄]
     
-    F = Vector{Float64}(undef, 3)
-    F[1] = (car.w - car.c1 * Ṙ1 - car.c2 * Ṙ2 - car.c3 * Ṙ3 - car.c4 * Ṙ4 
-                  - car.k1 * R1 - car.k2 * R2 - car.k3 * R3 - car.k4 * R4)
-    F[2] = ((car.c1 * Ṙ1 + car.c2 * Ṙ2 + car.k1 * R1 + car.k2 * R2) * car.lf 
-           -(car.c3 * Ṙ3 + car.c4 * Ṙ4 + car.k3 * R3 + car.k4 * R4) * car.lr)
-    F[3] = ((car.c1 * Ṙ1 - car.c2 * Ṙ2 + car.k1 * R1 - car.k2 * R2) * car.rf 
-           -(car.c3 * Ṙ3 - car.c4 * Ṙ4 + car.k3 * R3 - car.k4 * R4) * car.rr)
-    return F
-end # forcingFn
+    return Ṙ # which is x′
+end # roadway
 
-function ICs(car::FsaeRaceCar)::Tuple
-    f0 = zeros(Float64, 3)
-    x0 = zeros(Float64, 3)
-    v0 = zeros(Float64, 3)
+# Function vehicle is the model's fᵧ, viz., y″ = fᵧ(model, t, x, y, y′).
+function vehicle(car::FsaeRaceCar, t::Float64, x::Vector{Float64}, y::Vector{Float64}, y′::Vector{Float64})::Vector{Float64}
+    # arguments
+    #    car  the car's parameters.
+    #    t    the independent variable, i.e., time.
+    #    x    the control variables, i.e., displacement of the wheels.
+    #    y    the response variables, viz, displacement of the vehicle.
+    #    y′   rate of response variables, viz, velocity of the vehicle.
+    # returned
+    #    y″   acceleration of the vehicle.
     
-    f0[1] = car.w
-    
-    K = stiffnessMtx(car)
-    x0 = K \ f0
-    
-    v0[1] = 0.0
-    v0[2] = 0.0
-    v0[3] = 0.0
-    return (x0, v0)
-end # ICs
+    # Forces caused by the control variables:
+    # x  = {R₁, R₂, R₃, R₄}ᵀ
+    # x′ = {Ṙ₁, Ṙ₂, Ṙ₃, Ṙ₄}ᵀ
+    x′ = roadway(car, t, x, y) 
+    ff = car.ffF - car.ffC*x′ - car.ffK*x
 
-function acceleration(car::FsaeRaceCar, time::Real, position::Vector{<:Real}, velocity::Vector{<:Real})::Vector{<:Real}
-    a = Vector{Float64}(undef, 3)
-    f = forcingFn(car, time)
-    M = massMtx(car)
-    C = dampingMtx(car)
-    Cv = C * velocity
-    K = stiffnessMtx(car)
-    Kx = K * position
-    a = M \ (f - Kx - Cv)
-    return a
-end # acceleration
+    # Forces caused by the response variables:
+    # y  = {h, p, r}ᵀ           h = heave
+    # y′ = {ḣ, ṗ, ṙ}ᵀ   where   p = pitch
+    # y″ = {ḧ, p̈, r̈}ᵀ           r = roll
+    y″ = car.M \ (ff - car.C*y′ - car.K*y)
+    
+    return y″
+end # vehicle
 
 function run()
-    # asign the parameters that define a car
+    # Asign parameters that define a car.
     m  = 14.0     # mass in slugs
     w  = 450.0    # weight in lbs
-    Jx = 20.0     # moment of inertia resisting roll  in ft.lbs/(rad/sec^2)
-    Jy = 45.0     # moment of inertia resisting pitch in ft.lbs/(rad/sec^2)
+    Jₓ = 20.0     # moment of inertia resisting roll  in ft.lbs/(rad/sec^2)
+    Jᵧ = 45.0     # moment of inertia resisting pitch in ft.lbs/(rad/sec^2)
     lf = 3.2      # distance from CG to front axle in ft
     lr = 1.8      # distance from CG to rear  axle in ft
     rf = 2.1      # distance from CL to center tire patch at front axle in ft
     rr = 2.0      # distance from CL to center tire patch at rear  axle in ft
-    c1 = 120.0    # driver front damping from shock absorber in lbs/(ft/sec)
-    c2 = 120.0    # passenger front damping from shock absorber in lbs/(ft/sec)
-    c3 = 180.0    # passenger rear damping from shock absorber in lbs/(ft/sec)
-    c4 = 180.0    # driver rear damping from shock absorber in lbs/(ft/sec)
-    k1 = 1800.0   # driver front spring stiffness in lbs/ft
-    k2 = 1800.0   # passenger front spring stiffness in lbs/ft
-    k3 = 3600.0   # passenger rear spring stiffness in lbs/ft
-    k4 = 3600.0   # driver rear spring stiffness in lbs/ft
-    car = FsaeRaceCar(m, w, Jx, Jy, lf, lr, rf, rr, 
-                      c1, c2, c3, c4, k1, k2, k3, k4)
+    c₁ = 120.0    # driver-front damping from shock absorber in lbs/(ft/sec)
+    c₂ = 120.0    # passenger-front damping from shock absorber in lbs/(ft/sec)
+    c₃ = 180.0    # passenger-rear damping from shock absorber in lbs/(ft/sec)
+    c₄ = 180.0    # driver-rear damping from shock absorber in lbs/(ft/sec)
+    k₁ = 1800.0   # driver-front spring stiffness in lbs/ft
+    k₂ = 1800.0   # passenger-front spring stiffness in lbs/ft
+    k₃ = 3600.0   # passenger-rear spring stiffness in lbs/ft
+    k₄ = 3600.0   # driver-rear spring stiffness in lbs/ft
+    car = FsaeRaceCar(m, w, Jₓ, Jᵧ, lf, lr, rf, rr, 
+                      c₁, c₂, c₃, c₄, k₁, k₂, k₃, k₄)
                       
-    # properties for the integrator
+    # Properties for the integrator.
     tol = 0.0001   # upper bound on the local truncation error
     N = 500        # number of global steps
     T = 1.5        # time at the end of the run/analysis
     
-    # establish the initial state
-    t0 = 0.0
-    ic = ICs(car)
-    x0 = ic[1]
-    v0 = ic[2]
-    a0 = acceleration(car, t0, x0, v0)
+    # Establish the initial conditions.
+    t₀  = 0.0
+    x₀  = zeros(Float64, 4)
+    y₀  = car.K \ car.ffF
+    x′₀ = roadway(car, t₀, x₀, y₀)
+    y′₀ = zeros(Float64, 3)
+    y″₀ = vehicle(car, t₀, x₀, y₀, y′₀)
     
     print("\nThe initial state is:\n")
-    print("  z  = ", PF.toString(12x0[1]), " in.\n")
-    print("  z′ = ", PF.toString(12v0[1]), " in./sec.\n")
-    print("  z″ = ", PF.toString(12a0[1]), " in./sec.²\n")
-    print("  θ  = ", PF.toString(180x0[2]/π), " deg.\n") 
-    print("  θ′ = ", PF.toString(180v0[2]/π), " deg./sec.\n") 
-    print("  θ″ = ", PF.toString(180a0[2]/π), " deg./sec.²\n") 
-    print("  φ  = ", PF.toString(180x0[3]/π), " deg.\n")
-    print("  φ′ = ", PF.toString(180v0[3]/π), " deg./sec.\n")
-    print("  φ″ = ", PF.toString(180a0[3]/π), " deg./sec.²\n")
-
-    function my_ode(x::Real, y::Vector{<:Real}, y′::Vector{<:Real})::Tuple{Vector{<:Real}, Vector{<:Real}}
-        # the ODE to be solved
-        y″ = acceleration(car, x, y, y′)
-        
-        # this ODE, as written, has no internal or hidden variables
-        w = Vector{Float64}(undef, 0)
-        return (y″, w)
-    end # ode
+    print("  z  = ", PF.toString(12y₀[1]), " in.\n")
+    print("  z′ = ", PF.toString(12y′₀[1]), " in./sec.\n")
+    print("  z″ = ", PF.toString(12y″₀[1]), " in./sec.²\n")
+    print("  θ  = ", PF.toString(180y₀[2]/π), " deg.\n") 
+    print("  θ′ = ", PF.toString(180y′₀[2]/π), " deg./sec.\n") 
+    print("  θ″ = ", PF.toString(180y″₀[2]/π), " deg./sec.²\n") 
+    print("  φ  = ", PF.toString(180y₀[3]/π), " deg.\n")
+    print("  φ′ = ", PF.toString(180y′₀[3]/π), " deg./sec.\n")
+    print("  φ″ = ", PF.toString(180y″₀[3]/π), " deg./sec.²\n")
     
-    solver = SecondOrderPECE(my_ode, N, t0, T, x0, v0, tol)
-    
+    # Create the data vectors used to construct the figures.
     t  = zeros(Float64, N+1)    # time
     ε  = zeros(Float64, N+1)    # local truncation error
     z  = zeros(Float64, N+1)    # heave in inches
@@ -384,43 +415,45 @@ function run()
     θ″ = zeros(Float64, N+1)    # acceleration of pitch in deg/sec²
     φ″ = zeros(Float64, N+1)    # acceleration of roll in deg/sec²
     
-    t[1]  = t0
-    z[1]  = 12x0[1]
-    θ[1]  = 180x0[2] / π
-    φ[1]  = 180x0[3] / π
-    z′[1] = 12v0[1]
-    θ′[1] = 180v0[2] / π
-    φ′[1] = 180v0[3] / π
-    ode   = solver.ode(t0, x0, v0)
-    a0    = ode[1]
-    z″[1] = 12a0[1]
-    θ″[1] = 180a0[2] / π
-    φ″[1] = 180a0[3] / π
+    # Create the solver.
+    pece = SecondOrderPECE(roadway, vehicle, car, N, t₀, T, x₀, y₀, y′₀, tol)
+    
+    # Begin populating the data vectors.
+    t[1]  = PF.get(pece.t_prev)
+    z[1]  = 12pece.y_prev[1]
+    θ[1]  = 180pece.y_prev[2] / π
+    φ[1]  = 180pece.y_prev[3] / π
+    z′[1] = 12pece.y′_prev[1]
+    θ′[1] = 180pece.y′_prev[2] / π
+    φ′[1] = 180pece.y′_prev[3] / π
+    z″[1] = 12pece.y″_prev[1]
+    θ″[1] = 180pece.y″_prev[2] / π
+    φ″[1] = 180pece.y″_prev[3] / π
     
     i = 1
-    while solver.n < solver.N
-        advance!(solver)
-        if solver.atNode == true
+    while pece.n < pece.N
+        advance!(pece)
+        if pece.atNode == true
             i = i + 1
-            t[i]  = PF.get(solver.x_curr)
-            ε[i]  = PF.get(solver.ε_curr)
-            z[i]  = 12solver.y_curr[1]
-            θ[i]  = 180solver.y_curr[2] / π
-            φ[i]  = 180solver.y_curr[3] / π
-            z′[i] = 12solver.y′_curr[1]
-            θ′[i] = 180solver.y′_curr[2] / π
-            φ′[i] = 180solver.y′_curr[3] / π
-            z″[i] = 12solver.y″_curr[1]
-            θ″[i] = 180solver.y″_curr[2] / π
-            φ″[i] = 180solver.y″_curr[3] / π
+            t[i]  = PF.get(pece.t_curr)
+            ε[i]  = PF.get(pece.ε_curr)
+            z[i]  = 12pece.y_curr[1]
+            θ[i]  = 180pece.y_curr[2] / π
+            φ[i]  = 180pece.y_curr[3] / π
+            z′[i] = 12pece.y′_curr[1]
+            θ′[i] = 180pece.y′_curr[2] / π
+            φ′[i] = 180pece.y′_curr[3] / π
+            z″[i] = 12pece.y″_curr[1]
+            θ″[i] = 180pece.y″_curr[2] / π
+            φ″[i] = 180pece.y″_curr[3] / π
         end
     end # while
     ε[1] = ε[2]
     print("\nThe FSAE race car analysis ran with statistics:\n")
-    print("   ", PF.toString(solver.steps), " steps taken with ",
-          PF.toString(solver.repeats), " steps repeated\n")
-    print("   of which ", PF.toString(solver.doubled), " were doubled and ",
-          PF.toString(solver.halved), " were halved.\n")
+    print("   ", PF.toString(pece.steps), " steps taken with ",
+          PF.toString(pece.repeats), " steps repeated\n")
+    print("   of which ", PF.toString(pece.doubled), " were doubled and ",
+          PF.toString(pece.halved), " were halved.\n")
     
     # set the graphics backend to GR
     ENV["QT_QPA_PLATFORM"] = "wayland"
